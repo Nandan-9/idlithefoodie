@@ -13,7 +13,12 @@ import {
 
 export default function Home() {
   return (
-      <HomeView />
+      // <HomeView 
+      <div className="bg-[#ffffff] min-h-screen">
+        <h1 className="font-bold text-black text-4xl items-center justify-center">
+          Comming soon
+        </h1>
+      </div>
 
   );
 }
