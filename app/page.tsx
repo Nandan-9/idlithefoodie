@@ -47,23 +47,36 @@ export default function Home() {
       {/* Main Content */}
       <section className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 text-center">
         {/* Mascot */}
-        <motion.div
-          initial={{ scale: 0.85, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ duration: 0.8 }}
-          className="relative mb-10"
-        >
-          <div className="absolute inset-0 rounded-full bg-[#6F2DBD]/30 blur-2xl" />
+{/* Mascot */}
+<motion.div
+  initial={{ scale: 0.85, opacity: 0 }}
+  animate={{
+    scale: 1,
+    opacity: 1,
+    y: [0, -18, 0], // smooth up/down movement
+  }}
+  transition={{
+    opacity: { duration: 0.8 },
+    scale: { duration: 0.8 },
+    y: {
+      duration: 2.2,
+      repeat: Infinity,
+      ease: "easeInOut",
+    },
+  }}
+  className="relative mb-10"
+>
+  <div className="absolute inset-0 rounded-full bg-[#6F2DBD]/30 blur-2xl" />
 
-          <Image
-            src="/asset2/mascote.png"
-            alt="Mascot"
-            width={260}
-            height={260}
-            priority
-            className="relative z-10 object-contain drop-shadow-[0_0_40px_rgba(111,45,189,0.45)]"
-          />
-        </motion.div>
+  <Image
+    src="/asset2/mascote.png"
+    alt="Mascot"
+    width={260}
+    height={260}
+    priority
+    className="relative z-10 object-contain drop-shadow-[0_0_40px_rgba(111,45,189,0.45)]"
+  />
+</motion.div>
 
         {/* Heading */}
         <motion.h1
