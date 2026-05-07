@@ -1,112 +1,95 @@
 "use client";
 
-import HomeView from "@/views/home/HomeView";
+import Image from "next/image";
 import { motion } from "framer-motion";
 import {
   Sparkles,
   Flame,
   Pizza,
   IceCream,
-  Star,
   ArrowRight,
 } from "lucide-react";
 
 export default function Home() {
   return (
-      // <HomeView 
-      <div className="min-h-screen bg-[#f7efe4] overflow-hidden relative flex items-center justify-center px-6">
-  {/* Background Glow */}
-  <div className="absolute top-[-120px] right-[-120px] w-[350px] h-[350px] bg-purple-300 rounded-full blur-3xl opacity-30"></div>
-  <div className="absolute bottom-[-100px] left-[-100px] w-[300px] h-[300px] bg-yellow-200 rounded-full blur-3xl opacity-30"></div>
+    <main className="relative min-h-screen overflow-hidden bg-[#141414] text-white">
+      {/* Background Glow */}
+      <div className="absolute inset-0">
+        <div className="absolute top-[-120px] left-[-120px] h-[320px] w-[320px] rounded-full bg-[#6F2DBD]/30 blur-3xl" />
+        <div className="absolute bottom-[-120px] right-[-120px] h-[320px] w-[320px] rounded-full bg-[#F5D90A]/20 blur-3xl" />
+      </div>
 
-  {/* Main Container */}
-  <div className="max-w-6xl w-full grid lg:grid-cols-2 gap-12 items-center">
-    
-    {/* Left Side */}
-    <div className="relative flex justify-center">
-      {/* Blob */}
-      <div className="absolute w-[380px] h-[380px] bg-purple-500 rounded-full blur-3xl opacity-20"></div>
+      {/* Floating Icons */}
+      <motion.div
+        animate={{ y: [0, -15, 0] }}
+        transition={{ duration: 5, repeat: Infinity }}
+        className="absolute left-10 top-24 opacity-30"
+      >
+        <Pizza size={42} className="text-[#F5D90A]" />
+      </motion.div>
 
-      {/* Card */}
-      <div className="relative bg-white/60 backdrop-blur-xl border border-white/40 shadow-2xl rounded-[40px] p-8 w-[320px]">
-        
-        {/* Floating Food Cards */}
-        <div className="absolute -top-10 -left-14 bg-white rounded-2xl shadow-lg p-3 rotate-[-8deg]">
-          <img
-            src="https://images.unsplash.com/photo-1513104890138-7c749659a591"
-            alt=""
-            className="w-24 h-24 object-cover rounded-xl"
+      <motion.div
+        animate={{ y: [0, 18, 0] }}
+        transition={{ duration: 6, repeat: Infinity }}
+        className="absolute right-12 top-40 opacity-30"
+      >
+        <IceCream size={40} className="text-[#6F2DBD]" />
+      </motion.div>
+
+      <motion.div
+        animate={{ y: [0, -10, 0] }}
+        transition={{ duration: 4, repeat: Infinity }}
+        className="absolute bottom-32 left-16 opacity-20"
+      >
+        <Flame size={46} className="text-[#F5D90A]" />
+      </motion.div>
+
+      {/* Main Content */}
+      <section className="relative z-10 flex min-h-screen flex-col items-center justify-center px-6 text-center">
+        {/* Mascot */}
+        <motion.div
+          initial={{ scale: 0.85, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={{ duration: 0.8 }}
+          className="relative mb-10"
+        >
+          <div className="absolute inset-0 rounded-full bg-[#6F2DBD]/30 blur-2xl" />
+
+          <Image
+            src="/asset2/mascote.png"
+            alt="Mascot"
+            width={260}
+            height={260}
+            priority
+            className="relative z-10 object-contain drop-shadow-[0_0_40px_rgba(111,45,189,0.45)]"
           />
-        </div>
+        </motion.div>
 
-        <div className="absolute -bottom-8 -right-10 bg-white rounded-2xl shadow-lg p-3 rotate-[10deg]">
-          <img
-            src="https://images.unsplash.com/photo-1565299624946-b28f40a0ae38"
-            alt=""
-            className="w-24 h-24 object-cover rounded-xl"
-          />
-        </div>
+        {/* Heading */}
+        <motion.h1
+          initial={{ opacity: 0, y: 18 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25 }}
+          className="max-w-4xl text-5xl font-black leading-tight md:text-7xl"
+        >
+          Something Delicious
+          <span className="block bg-gradient-to-r from-[#F5D90A] to-[#6F2DBD] bg-clip-text text-transparent">
+            Is Coming Soon
+          </span>
+        </motion.h1>
 
-        {/* Mascot Circle */}
-        <div className="w-36 h-36 mx-auto bg-[#f7efe4] rounded-full flex items-center justify-center shadow-inner">
-          <span className="text-7xl">🍚</span>
-        </div>
 
-        {/* Text */}
-        <h1 className="text-5xl font-black text-center mt-8 text-purple-700 tracking-tight">
-          Idli
-        </h1>
-
-        <p className="text-center text-gray-600 mt-3 text-lg">
-          Something delicious is cooking...
-        </p>
-
-        {/* Button */}
-        <button className="mt-8 w-full bg-purple-600 hover:bg-purple-700 transition-all text-white font-semibold py-4 rounded-2xl shadow-lg">
-          Notify Me
-        </button>
-      </div>
-    </div>
-
-    {/* Right Side */}
-    <div className="text-center lg:text-left">
-      <div className="inline-flex items-center gap-2 bg-white px-5 py-2 rounded-full shadow-md mb-6">
-        <span className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></span>
-        <span className="text-sm font-medium text-gray-700">
-          Launching Soon
-        </span>
-      </div>
-
-      <h2 className="text-6xl md:text-7xl font-black leading-none text-[#2d1b46]">
-        COMING
-        <br />
-        <span className="text-purple-600">SOON</span>
-      </h2>
-
-      <p className="mt-8 text-xl text-gray-600 max-w-xl leading-relaxed">
-        Discover trending food spots, share reels, rate dishes, and explore
-        your city like never before. Built for foodies by foodies.
-      </p>
-
-      {/* Features */}
-      <div className="mt-10 flex flex-wrap gap-4 justify-center lg:justify-start">
-        {[
-          "🍕 Food Reels",
-          "📍 Nearby Spots",
-          "⭐ Ratings",
-          "🔥 Trending"
-        ].map((item) => (
-          <div
-            key={item}
-            className="bg-white shadow-md px-5 py-3 rounded-2xl text-gray-700 font-medium"
-          >
-            {item}
-          </div>
-        ))}
-      </div>
-    </div>
-  </div>
-</div>
-
+        {/* Bottom Accent */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.6 }}
+          className="mt-20 flex items-center gap-2 text-sm text-gray-500"
+        >
+          <div className="h-2 w-2 rounded-full bg-[#F5D90A]" />
+          <span>Launching Soon</span>
+        </motion.div>
+      </section>
+    </main>
   );
 }
