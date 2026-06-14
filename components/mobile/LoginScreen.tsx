@@ -143,12 +143,6 @@ export default function LoginScreen() {
           Login
         </button>
 
-        {/* Or divider */}
-        <div className="flex items-center gap-3 my-1">
-          <div className="flex-1 h-px bg-[#D0C8E8]" />
-          <span className="text-[#AAA] text-sm">or</span>
-          <div className="flex-1 h-px bg-[#D0C8E8]" />
-        </div>
       </div>
 
       {/* Purple bottom strip */}
