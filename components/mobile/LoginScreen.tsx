@@ -3,10 +3,49 @@
 import Image from "next/image";
 import { useState } from "react";
 
+const API_BASE = process.env.NEXT_PUBLIC_BASE_URL ?? "";
+
 export default function LoginScreen() {
   const [showPassword, setShowPassword] = useState(false);
-  const [username, setUsername] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  async function handleLogin() {
+    const trimmed = identifier.trim();
+    if (!trimmed || !password) {
+      setError("Please fill in all fields.");
+      return;
+    }
+    setError(null);
+    setLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/login/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: trimmed, password }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        const msg =
+          data?.detail ??
+          data?.non_field_errors?.[0] ??
+          "Login failed. Please check your credentials.";
+        setError(msg);
+        return;
+      }
+
+      // TODO: persist tokens and navigate
+      console.log("Login success", data);
+    } catch {
+      setError("Network error. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
     <div className="relative flex flex-col min-h-screen bg-[#FAF7F2] font-sans">
@@ -64,8 +103,8 @@ export default function LoginScreen() {
           <input
             type="text"
             placeholder="Phone number / Username"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            value={identifier}
+            onChange={(e) => setIdentifier(e.target.value)}
             className="flex-1 bg-transparent text-[#333] placeholder-[#BBB] text-[15px] outline-none"
           />
         </div>
@@ -138,9 +177,18 @@ export default function LoginScreen() {
           </button>
         </div>
 
+        {/* Error message */}
+        {error && (
+          <p className="text-red-500 text-sm text-center -mt-1">{error}</p>
+        )}
+
         {/* Login button */}
-        <button className="w-full bg-[#6F2DBD] text-white font-bold text-base rounded-2xl py-4 mt-1 shadow-md active:scale-95 transition-transform">
-          Login
+        <button
+          onClick={handleLogin}
+          disabled={loading}
+          className="w-full bg-[#6F2DBD] text-white font-bold text-base rounded-2xl py-4 mt-1 shadow-md active:scale-95 transition-transform disabled:opacity-60"
+        >
+          {loading ? "Logging in…" : "Login"}
         </button>
 
       </div>
