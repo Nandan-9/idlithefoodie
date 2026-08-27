@@ -2,7 +2,7 @@
 
 import { motion, AnimatePresence } from "framer-motion";
 import { X } from "lucide-react";
-import { navLinks } from "@/lib/constants";
+import { useRouter } from "next/navigation";
 
 interface MobileMenuProps {
   open: boolean;
@@ -13,6 +13,7 @@ export default function MobileMenu({
   open,
   setOpen,
 }: MobileMenuProps) {
+  const router = useRouter();
   return (
     <AnimatePresence>
       {open && (
@@ -32,14 +33,15 @@ export default function MobileMenu({
           </div>
 
           <div className="flex flex-col gap-8 px-6 pt-20">
-            {navLinks.map((item) => (
-              <button
-                key={item}
-                className="text-left text-4xl font-black"
-              >
-                {item}
-              </button>
-            ))}
+            <button
+              onClick={() => {
+                setOpen(false);
+                router.push("/login");
+              }}
+              className="mt-4 self-start bg-white text-[#6D28D9] px-8 py-3 rounded-full text-2xl font-black"
+            >
+              Sign In
+            </button>
           </div>
         </motion.div>
       )}

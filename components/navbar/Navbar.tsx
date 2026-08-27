@@ -3,12 +3,13 @@
 import Image from "next/image";
 import { Menu } from "lucide-react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import Container from "../layout/Container";
-import NavLinks from "./NavLinks";
 import MobileMenu from "./MobileMenu";
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const router = useRouter();
 
   return (
     <>
@@ -25,10 +26,11 @@ export default function Navbar() {
               />
             </div>
 
-            <NavLinks />
-
             <div className="hidden lg:flex items-center gap-4">
-              <button className="bg-[#6D28D9] text-white px-7 py-3 rounded-full font-semibold">
+              <button
+                onClick={() => router.push("/login")}
+                className="bg-[#6D28D9] text-white px-7 py-3 rounded-full font-semibold"
+              >
                 Sign In
               </button>
             </div>

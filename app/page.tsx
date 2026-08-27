@@ -1,5 +1,7 @@
-import LoginScreen from "@/components/mobile/LoginScreen";
+"use client";
+
+import HomeView from "@/views/home/HomeView";
 
 export default function Home() {
-  return <LoginScreen />;
+  return <HomeView />;
 }

@@ -1,104 +1,64 @@
+"use client";
+
 import Image from "next/image";
 import { motion } from "framer-motion";
 
 export default function HeroVisuals() {
   return (
-    <div className="relative w-full h-screen">
-      <Image
-        src="/asset2/bg-l1.png"
-        alt="Background Shape"
-        fill
-        priority
-        className="object-cover object-right"
-      />
+    <div className="absolute inset-0 overflow-hidden bg-[#6d35bb]">
+      {/* soft decorative blobs */}
+      <div className="absolute -left-20 -top-20 h-72 w-72 rounded-full bg-[#7C3AED] opacity-60 blur-2xl" />
+      <div className="absolute -bottom-24 right-0 h-80 w-80 rounded-full bg-[#fedc19] opacity-30 blur-3xl" />
 
-      {/* circle container */}
-      <div
-        className="absolute top-[150px] right-[80px] z-10 rounded-full bg-[#6d35bb] "
-        style={{
-          width: "600px",
-          height: "600px",
-        }}
-      >
-        {/* curry */}
-        <motion.div
-          animate={{ y: [0, -14, 0] }}
-          transition={{ duration: 4, repeat: Infinity }}
-          className="absolute top-[20px] right-[-100px] z-20"
-        >
-          <Image
-            src="/asset2/curry.png"
-            alt="Curry"
-            width={500}
-            height={360}
-            className="drop-shadow-2xl"
-          />
-        </motion.div>
-
-        {/* mascot */}
-        <motion.div
-          animate={{ y: [0, -10, 0] }}
-          transition={{ duration: 3, repeat: Infinity }}
-          className="absolute left-[-200px] top-[100px] z-20"
-        >
-          <Image
-            src="/asset2/mascote.png"
-            alt="Mascot"
-            width={500}
-            height={220}
-          />
-        </motion.div>
-
-        {/* burger */}
-        <motion.div
-          animate={{ y: [0, 12, 0] }}
-          transition={{ duration: 5, repeat: Infinity }}
-          className="absolute bottom-[-200px] right-[20px] z-20"
-        >
-          <Image
-            src="/asset2/burger.png"
-            alt="Burger"
-            width={500}
-            height={500}
-            className="drop-shadow-2xl"
-          />
-        </motion.div>
-      </div>
-        <div className="absolute top-[160px] left-[40px] z-50 rotate-[-8deg]">
-            <div className="relative bg-white border-[4px] border-[#6D28D9] rounded-full px-8 py-5 shadow-lg">
-            <p className="text-[#6D28D9] font-black text-[30px] leading-tight">
+      <div className="absolute inset-0 flex items-center justify-center p-8">
+        <div className="relative flex w-full max-w-[420px] flex-col items-center">
+          {/* speech bubble */}
+          <motion.div
+            animate={{ y: [0, -12, 0] }}
+            transition={{ duration: 4, repeat: Infinity }}
+            className="z-20 -rotate-[6deg] self-start"
+          >
+            <div className="relative rounded-3xl border-[4px] border-white bg-white px-7 py-4 shadow-xl">
+              <p className="text-2xl font-black leading-tight text-[#6D28D9]">
                 FOOD {">"}
                 <br />
                 EVERYTHING
-            </p>
-
-            <div className="absolute bottom-[-13px] left-12 w-6 h-6 bg-white border-r-[4px] border-b-[4px] border-[#6D28D9] rotate-45" />
+              </p>
+              <div className="absolute -bottom-[11px] left-10 h-5 w-5 rotate-45 border-b-[4px] border-r-[4px] border-white bg-white" />
             </div>
-      </div>
-                <div
-                className="
-                    absolute bottom-[120px] right-[150px] z-10
-                    rounded-full bg-[#fedc19] shadow-2xl text-black
-                    flex flex-col items-center justify-center
-                    text-center font-bold leading-tight text-2xl
-                "
-                style={{
-                    width: "190px",
-                    height: "190px",
-                }}
-                >
-                <span>EAT</span>
-                <span>SLEEP</span>
-                <span>REPEAT</span>
-                  </div>
-      <div className="absolute top-16 right-10 text-[#6D28D9] text-5xl z-50">
-        ✦
-      </div>
+          </motion.div>
 
-      <div className="absolute bottom-[220px] left-[40px] text-[#6D28D9] text-6xl z-50">
-        ☆
-      </div>
+          {/* mascot */}
+          <motion.div
+            animate={{ y: [0, -14, 0] }}
+            transition={{ duration: 3.5, repeat: Infinity }}
+            className="z-10 my-6"
+          >
+            <Image
+              src="/asset2/mascote.png"
+              alt="Mascot"
+              width={430}
+              height={190}
+              priority
+              className="h-auto w-[300px] drop-shadow-2xl sm:w-[360px]"
+            />
+          </motion.div>
 
+          {/* sticker */}
+          <motion.div
+            animate={{ rotate: [-6, 6, -6] }}
+            transition={{ duration: 6, repeat: Infinity }}
+            className="z-20 flex h-[150px] w-[150px] flex-col items-center justify-center self-end rounded-full bg-[#fedc19] text-center text-xl font-black leading-tight text-black shadow-2xl"
+          >
+            <span>EAT</span>
+            <span>SLEEP</span>
+            <span>REPEAT</span>
+          </motion.div>
+
+          <div className="absolute right-4 top-0 text-5xl text-[#fedc19]">✦</div>
+          <div className="absolute bottom-4 left-0 text-5xl text-white">☆</div>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,11 +1,19 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useSession } from "@/app/providers";
 
 const API_BASE = process.env.NEXT_PUBLIC_BASE_URL ?? "";
 
 export default function LoginScreen() {
+  const router = useRouter();
+  const { status, login } = useSession();
+
+  useEffect(() => {
+    if (status === "authenticated") router.replace("/feed");
+  }, [status, router]);
   const [showPassword, setShowPassword] = useState(false);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -38,8 +46,14 @@ export default function LoginScreen() {
         return;
       }
 
-      // TODO: persist tokens and navigate
-      console.log("Login success", data);
+      const token = data.tokens?.access ?? data.access ?? data.token ?? "";
+      const refresh = data.tokens?.refresh ?? data.refresh ?? null;
+      if (!token) {
+        setError("Login succeeded but no token received. Contact support.");
+        return;
+      }
+      login(token, refresh);
+      router.push("/feed");
     } catch {
       setError("Network error. Please try again.");
     } finally {
@@ -201,7 +215,12 @@ export default function LoginScreen() {
       >
         <p className="text-white text-sm">
           New here? Become a foodie,{" "}
-          <button className="text-[#F5D90A] font-bold">Signup</button>
+          <button
+            onClick={() => router.push("/signup")}
+            className="text-[#F5D90A] font-bold"
+          >
+            Signup
+          </button>
         </p>
       </div>
     </div>
