@@ -14,6 +14,22 @@ export default function LoginScreen() {
   useEffect(() => {
     if (status === "authenticated") router.replace("/feed");
   }, [status, router]);
+  const [showDesktopNudge, setShowDesktopNudge] = useState(false);
+
+  useEffect(() => {
+    const check = () => {
+      const coarse = window.matchMedia("(pointer: coarse)").matches;
+      const mobileUA = /Android|iPhone|iPod|Windows Phone|webOS|BlackBerry/i.test(
+        navigator.userAgent,
+      );
+      const smallScreen = window.innerWidth <= 768;
+      setShowDesktopNudge(!(smallScreen && (coarse || mobileUA)));
+    };
+    check();
+    window.addEventListener("resize", check);
+    return () => window.removeEventListener("resize", check);
+  }, []);
+
   const [showPassword, setShowPassword] = useState(false);
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
@@ -63,6 +79,33 @@ export default function LoginScreen() {
 
   return (
     <div className="relative flex flex-col min-h-screen bg-[#FAF7F2] font-sans">
+      {showDesktopNudge && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-6 backdrop-blur-sm">
+          <div className="w-full max-w-sm rounded-3xl bg-white p-7 text-center shadow-2xl">
+            <div className="mx-auto mb-4 flex justify-center">
+              <Image
+                src="/assets/mascote.png"
+                alt="Idlie Mascot"
+                width={90}
+                height={90}
+                className="object-contain"
+              />
+            </div>
+            <p className="text-[#6F2DBD] font-extrabold text-xl leading-tight">
+              Whoa there, big screen!
+            </p>
+            <p className="text-[#555] text-sm mt-3 leading-relaxed">
+              Idli was lovingly steamed for pocket-sized screens. On a desktop
+              it feels like eating one idli with a fork and knife — technically
+              possible, spiritually wrong.
+            </p>
+            <p className="text-[#555] text-sm mt-2 leading-relaxed">
+              Grab your phone, tap your way in, and let the foodie journey
+              begin. 🍽️📱
+            </p>
+          </div>
+        </div>
+      )}
       {/* Logo */}
       <div className="flex justify-center pt-12 pb-6">
         <Image
