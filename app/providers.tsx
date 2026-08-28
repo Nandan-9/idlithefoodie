@@ -6,17 +6,20 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from "react";
 import { useRouter } from "next/navigation";
-import { getToken, setSession, clearSession } from "@/lib/auth";
-import { fetchFeed } from "@/lib/api";
+import { fetchMe, logoutRequest } from "@/lib/api";
+
+export type User = { id: number; username: string; phone_number: string };
 
 type Status = "loading" | "authenticated" | "unauthenticated";
 
 type SessionContextType = {
   status: Status;
-  login: (access: string, refresh?: string | null) => void;
+  user: User | null;
+  refetch: () => Promise<void>;
   logout: () => void;
 };
 
@@ -31,46 +34,53 @@ export function useSession(): SessionContextType {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const [status, setStatus] = useState<Status>("loading");
+  const [user, setUser] = useState<User | null>(null);
+  const mounted = useRef(true);
+
+  const refetch = useCallback(async () => {
+    try {
+      const me = await fetchMe();
+      if (!mounted.current) return;
+      setUser(me);
+      setStatus("authenticated");
+    } catch {
+      if (!mounted.current) return;
+      setUser(null);
+      setStatus("unauthenticated");
+    }
+  }, []);
 
   useEffect(() => {
-    let cancelled = false;
-
-    if (!getToken()) {
-      setStatus("unauthenticated");
-      return;
-    }
-
-    // Validate the access token by hitting an authenticated endpoint.
-    // apiFetch transparently refreshes; a rejection means the session is dead.
-    fetchFeed()
-      .then(() => {
-        if (!cancelled) setStatus("authenticated");
+    mounted.current = true;
+    // Hydrate the session from the auth cookie on first load.
+    fetchMe()
+      .then((me) => {
+        if (mounted.current) {
+          setUser(me);
+          setStatus("authenticated");
+        }
       })
       .catch(() => {
-        if (!cancelled) setStatus("unauthenticated");
+        if (mounted.current) {
+          setUser(null);
+          setStatus("unauthenticated");
+        }
       });
-
     return () => {
-      cancelled = true;
+      mounted.current = false;
     };
   }, []);
 
-  const login = useCallback(
-    (access: string, refresh?: string | null) => {
-      setSession(access, refresh);
-      setStatus("authenticated");
-    },
-    []
-  );
-
   const logout = useCallback(() => {
-    clearSession();
-    setStatus("unauthenticated");
-    router.push("/login");
+    logoutRequest().finally(() => {
+      setUser(null);
+      setStatus("unauthenticated");
+      router.push("/login");
+    });
   }, [router]);
 
   return (
-    <SessionContext.Provider value={{ status, login, logout }}>
+    <SessionContext.Provider value={{ status, user, refetch, logout }}>
       {children}
     </SessionContext.Provider>
   );

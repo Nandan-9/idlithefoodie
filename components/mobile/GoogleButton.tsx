@@ -1,21 +1,30 @@
 "use client";
 
-const API_BASE = process.env.NEXT_PUBLIC_BASE_URL ?? "";
+import { API_BASE, assertApiConfigured } from "@/lib/config";
 
 /**
  * Kicks off backend-driven Google OAuth. No Google SDK — just a full-page
- * redirect to the backend, which handles the handshake and redirects back to
- * `/dashboard?access=…&refresh=…` or `/login?error=…`.
+ * redirect to the backend, which runs the handshake, sets the auth cookies, and
+ * redirects back to `/feed` (existing user), `/complete-profile?token=…` (new
+ * user), or `/login?error=…`.
  */
 export default function GoogleButton({
   label = "Continue with Google",
+  onError,
 }: {
   label?: string;
+  onError?: (message: string) => void;
 }) {
   return (
     <button
       type="button"
       onClick={() => {
+        try {
+          assertApiConfigured();
+        } catch (e) {
+          onError?.(e instanceof Error ? e.message : "Sign-in is unavailable.");
+          return;
+        }
         window.location.href = `${API_BASE}/auth/google/login/`;
       }}
       className="w-full flex items-center justify-center gap-3 bg-white border border-[#E5E0F5] text-[#333] font-semibold text-base rounded-2xl py-4 shadow-sm active:scale-95 transition-transform"

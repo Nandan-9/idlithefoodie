@@ -6,24 +6,26 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/app/providers";
 import GoogleButton from "@/components/mobile/GoogleButton";
 
-const API_BASE = process.env.NEXT_PUBLIC_BASE_URL ?? "";
-
 const OAUTH_ERRORS: Record<string, string> = {
-  invalid_state: "Google sign-in failed. Please try again.",
-  missing_code: "Google sign-in failed. Please try again.",
-  google_exchange_failed: "Google sign-in failed. Please try again.",
-  incomplete_profile: "Please finish setting up your profile to continue.",
+  invalid_state: "Something went wrong signing in with Google. Please try again.",
+  missing_code: "Something went wrong signing in with Google. Please try again.",
+  google_auth_failed:
+    "Something went wrong signing in with Google. Please try again.",
+  incomplete_profile:
+    "Your Google account didn't share an email. Please try a different account.",
 };
 
 export default function LoginScreen() {
   const router = useRouter();
   const params = useSearchParams();
-  const { status, login } = useSession();
+  const { status } = useSession();
 
   useEffect(() => {
     if (status === "authenticated") router.replace("/feed");
   }, [status, router]);
+
   const [showDesktopNudge, setShowDesktopNudge] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const check = () => {
@@ -39,57 +41,10 @@ export default function LoginScreen() {
     return () => window.removeEventListener("resize", check);
   }, []);
 
-  const [showPassword, setShowPassword] = useState(false);
-  const [identifier, setIdentifier] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-
   useEffect(() => {
     const e = params.get("error");
     if (e) setError(OAUTH_ERRORS[e] ?? `Google sign-in failed: ${e}`);
   }, [params]);
-
-  async function handleLogin() {
-    const trimmed = identifier.trim();
-    if (!trimmed || !password) {
-      setError("Please fill in all fields.");
-      return;
-    }
-    setError(null);
-    setLoading(true);
-    try {
-      const res = await fetch(`${API_BASE}/auth/login/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier: trimmed, password }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        const msg =
-          data?.detail ??
-          data?.non_field_errors?.[0] ??
-          "Login failed. Please check your credentials.";
-        setError(msg);
-        return;
-      }
-
-      const token = data.tokens?.access ?? data.access ?? data.token ?? "";
-      const refresh = data.tokens?.refresh ?? data.refresh ?? null;
-      if (!token) {
-        setError("Login succeeded but no token received. Contact support.");
-        return;
-      }
-      login(token, refresh);
-      router.replace("/feed");
-    } catch {
-      setError("Network error. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
 
   return (
     <div className="relative flex flex-col min-h-screen bg-[#FAF7F2] font-sans">
@@ -154,115 +109,15 @@ export default function LoginScreen() {
         />
       </div>
 
-      {/* Form */}
-      <div className="flex flex-col gap-4 px-6 mt-6">
-        {/* Username input */}
-        <div className="flex items-center gap-3 bg-white border border-[#E5E0F5] rounded-2xl px-4 py-4 shadow-sm">
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#9B8DC4"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-            <circle cx="12" cy="7" r="4" />
-          </svg>
-          <input
-            type="text"
-            placeholder="Phone number / Username"
-            value={identifier}
-            onChange={(e) => setIdentifier(e.target.value)}
-            className="flex-1 bg-transparent text-[#333] placeholder-[#BBB] text-[15px] outline-none"
-          />
-        </div>
-
-        {/* Password input */}
-        <div className="flex items-center gap-3 bg-white border border-[#E5E0F5] rounded-2xl px-4 py-4 shadow-sm">
-          <svg
-            width="22"
-            height="22"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#9B8DC4"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-            <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-          </svg>
-          <input
-            type={showPassword ? "text" : "password"}
-            placeholder="Password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="flex-1 bg-transparent text-[#333] placeholder-[#BBB] text-[15px] outline-none"
-          />
-          <button
-            type="button"
-            onClick={() => setShowPassword(!showPassword)}
-            className="text-[#9B8DC4]"
-            aria-label={showPassword ? "Hide password" : "Show password"}
-          >
-            {showPassword ? (
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                <circle cx="12" cy="12" r="3" />
-              </svg>
-            ) : (
-              <svg
-                width="20"
-                height="20"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-                <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-                <line x1="1" y1="1" x2="23" y2="23" />
-              </svg>
-            )}
-          </button>
-        </div>
-
-        {/* Forgot password */}
-        <div className="flex justify-end -mt-1">
-          <button className="text-[#6F2DBD] text-sm font-medium">
-            Forgot password?
-          </button>
-        </div>
-
-        {/* Error message */}
+      {/* Google sign-in */}
+      <div className="flex flex-col gap-4 px-6 mt-10">
         {error && (
-          <p className="text-red-500 text-sm text-center -mt-1">{error}</p>
+          <p className="text-red-500 text-sm text-center">{error}</p>
         )}
-
-        {/* Login button */}
-        <button
-          onClick={handleLogin}
-          disabled={loading}
-          className="w-full bg-[#6F2DBD] text-white font-bold text-base rounded-2xl py-4 mt-1 shadow-md active:scale-95 transition-transform disabled:opacity-60"
-        >
-          {loading ? "Logging in…" : "Login"}
-        </button>
-
-        <GoogleButton />
+        <GoogleButton label="Continue with Google" onError={setError} />
+        <p className="text-[#888] text-xs text-center px-4">
+          We use Google to keep your account secure. No passwords to remember.
+        </p>
       </div>
 
       {/* Purple bottom strip */}

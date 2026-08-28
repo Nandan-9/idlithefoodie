@@ -1,10 +1,4 @@
-import {
-  getToken,
-  getRefreshToken,
-  setToken,
-  setRefreshToken,
-  clearSession,
-} from "./auth";
+import { API_BASE as BASE } from "./config";
 import type {
   Post,
   Comment,
@@ -26,15 +20,19 @@ import type {
   HotelReviewsData,
 } from "@/types/hotel";
 
-const BASE = process.env.NEXT_PUBLIC_BASE_URL ?? "";
-
-/** Thrown when a request could not be authenticated even after refreshing. */
-export class AuthError extends Error {
+/**
+ * Thrown when a request could not be authenticated even after refreshing.
+ * (Historically `AuthError`; kept as an alias.)
+ */
+export class SessionExpiredError extends Error {
   constructor() {
     super("Not authenticated");
-    this.name = "AuthError";
+    this.name = "SessionExpiredError";
   }
 }
+
+/** @deprecated use `SessionExpiredError` */
+export const AuthError = SessionExpiredError;
 
 /** Thrown when the profile update endpoint rejects the payload. */
 export class ProfileValidationError extends Error {
@@ -59,64 +57,36 @@ export class PostValidationError extends Error {
   }
 }
 
-let refreshInFlight: Promise<string | null> | null = null;
+let refreshInFlight: Promise<boolean> | null = null;
 
 /**
- * Exchange the stored refresh token for a fresh access token.
+ * Ask the backend to rotate the `access_token` cookie using the `refresh_token`
+ * cookie. Auth is entirely cookie-based — no token ever passes through JS — so
+ * this sends no body and just reports whether the rotation succeeded.
  * Single-flight: concurrent callers share one network request.
- * Returns the new access token, or null if refresh is not possible.
  */
-export function refreshAccessToken(): Promise<string | null> {
+function refreshSession(): Promise<boolean> {
   if (refreshInFlight) return refreshInFlight;
 
-  refreshInFlight = (async () => {
-    const refresh = getRefreshToken();
-    if (!refresh) return null;
-
-    try {
-      const res = await fetch(`${BASE}/auth/refresh/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh }),
-      });
-      if (!res.ok) {
-        clearSession();
-        return null;
-      }
-      const data = await res.json();
-      const access: string | undefined = data.access ?? data.tokens?.access;
-      if (!access) {
-        clearSession();
-        return null;
-      }
-      setToken(access);
-      // Defensive: persist a rotated refresh token if the API ever returns one.
-      const rotated: string | undefined = data.refresh ?? data.tokens?.refresh;
-      if (rotated) setRefreshToken(rotated);
-      return access;
-    } catch {
-      return null;
-    }
-  })().finally(() => {
-    refreshInFlight = null;
-  });
+  refreshInFlight = fetch(`${BASE}/auth/refresh/`, {
+    method: "POST",
+    credentials: "include",
+  })
+    .then((res) => res.ok)
+    .catch(() => false)
+    .finally(() => {
+      refreshInFlight = null;
+    });
 
   return refreshInFlight;
 }
 
-function redirectToLogin() {
-  clearSession();
-  if (typeof window !== "undefined" && window.location.pathname !== "/") {
-    window.location.href = "/";
-  }
-}
-
-function withAuth(init: RequestInit | undefined, token: string | null): RequestInit {
+function withDefaults(init: RequestInit | undefined): RequestInit {
   return {
     ...init,
+    credentials: "include",
     headers: {
       "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init?.headers,
     },
   };
@@ -124,19 +94,40 @@ function withAuth(init: RequestInit | undefined, token: string | null): RequestI
 
 async function apiFetch(path: string, init?: RequestInit): Promise<Response> {
   const url = `${BASE}${path}`;
-  let res = await fetch(url, withAuth(init, getToken()));
+  let res = await fetch(url, withDefaults(init));
 
-  if (res.status === 401 || res.status === 403) {
-    const newToken = await refreshAccessToken();
-    if (newToken) {
-      res = await fetch(url, withAuth(init, newToken));
+  if ((res.status === 401 || res.status === 403) && path !== "/auth/refresh/") {
+    if (await refreshSession()) {
+      res = await fetch(url, withDefaults(init));
       if (res.status !== 401 && res.status !== 403) return res;
     }
-    redirectToLogin();
-    throw new AuthError();
+    throw new SessionExpiredError();
   }
 
   return res;
+}
+
+/** The current user, from the `access_token` cookie. Throws `SessionExpiredError` if anon. */
+export async function fetchMe(): Promise<{
+  id: number;
+  username: string;
+  phone_number: string;
+}> {
+  const res = await apiFetch(`/auth/me/`);
+  if (!res.ok) throw new SessionExpiredError();
+  const body = await res.json().catch(() => null);
+  const data = body?.data ?? body;
+  if (!data?.id) throw new SessionExpiredError();
+  return data;
+}
+
+/** Clear the auth cookies server-side. Best-effort — never throws. */
+export async function logoutRequest(): Promise<void> {
+  try {
+    await fetch(`${BASE}/auth/logout/`, { method: "POST", credentials: "include" });
+  } catch {
+    /* ignore */
+  }
 }
 
 export async function fetchFeed(): Promise<Post[]> {
