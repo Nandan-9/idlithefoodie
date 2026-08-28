@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import LoginScreen from "@/components/mobile/LoginScreen";
+import DashboardRedirect from "@/components/mobile/DashboardRedirect";
 
 function Splash() {
   return (
@@ -9,10 +9,10 @@ function Splash() {
   );
 }
 
-export default function LoginPage() {
+export default function DashboardPage() {
   return (
     <Suspense fallback={<Splash />}>
-      <LoginScreen />
+      <DashboardRedirect />
     </Suspense>
   );
 }

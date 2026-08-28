@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSession } from "@/app/providers";
+import GoogleButton from "@/components/mobile/GoogleButton";
 
 const API_BASE = process.env.NEXT_PUBLIC_BASE_URL ?? "";
 
@@ -148,6 +149,8 @@ export default function SignupScreen() {
         >
           {loading ? "Creating account…" : "Sign up"}
         </button>
+
+        <GoogleButton />
       </div>
 
       <div className="flex-1" />

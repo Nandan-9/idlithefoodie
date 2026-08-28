@@ -2,13 +2,22 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/app/providers";
+import GoogleButton from "@/components/mobile/GoogleButton";
 
 const API_BASE = process.env.NEXT_PUBLIC_BASE_URL ?? "";
 
+const OAUTH_ERRORS: Record<string, string> = {
+  invalid_state: "Google sign-in failed. Please try again.",
+  missing_code: "Google sign-in failed. Please try again.",
+  google_exchange_failed: "Google sign-in failed. Please try again.",
+  incomplete_profile: "Please finish setting up your profile to continue.",
+};
+
 export default function LoginScreen() {
   const router = useRouter();
+  const params = useSearchParams();
   const { status, login } = useSession();
 
   useEffect(() => {
@@ -35,6 +44,11 @@ export default function LoginScreen() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const e = params.get("error");
+    if (e) setError(OAUTH_ERRORS[e] ?? `Google sign-in failed: ${e}`);
+  }, [params]);
 
   async function handleLogin() {
     const trimmed = identifier.trim();
@@ -248,6 +262,7 @@ export default function LoginScreen() {
           {loading ? "Logging in…" : "Login"}
         </button>
 
+        <GoogleButton />
       </div>
 
       {/* Purple bottom strip */}
