@@ -83,7 +83,7 @@ export default function LoginScreen() {
         return;
       }
       login(token, refresh);
-      router.push("/feed");
+      router.replace("/feed");
     } catch {
       setError("Network error. Please try again.");
     } finally {
