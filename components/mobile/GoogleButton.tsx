@@ -5,7 +5,7 @@ const API_BASE = process.env.NEXT_PUBLIC_BASE_URL ?? "";
 /**
  * Kicks off backend-driven Google OAuth. No Google SDK — just a full-page
  * redirect to the backend, which handles the handshake and redirects back to
- * `/dashboard`, `/complete-profile`, or `/login?error=…`.
+ * `/dashboard?access=…&refresh=…` or `/login?error=…`.
  */
 export default function GoogleButton({
   label = "Continue with Google",
