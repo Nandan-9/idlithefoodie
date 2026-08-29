@@ -24,22 +24,9 @@ export default function LoginScreen() {
     if (status === "authenticated") router.replace("/feed");
   }, [status, router]);
 
-  const [showDesktopNudge, setShowDesktopNudge] = useState(false);
+  // TODO: temporarily disabled — non-mobile users are no longer blocked
+  const showDesktopNudge = false;
   const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const check = () => {
-      const coarse = window.matchMedia("(pointer: coarse)").matches;
-      const mobileUA = /Android|iPhone|iPod|Windows Phone|webOS|BlackBerry/i.test(
-        navigator.userAgent,
-      );
-      const smallScreen = window.innerWidth <= 768;
-      setShowDesktopNudge(!(smallScreen && (coarse || mobileUA)));
-    };
-    check();
-    window.addEventListener("resize", check);
-    return () => window.removeEventListener("resize", check);
-  }, []);
 
   useEffect(() => {
     const e = params.get("error");
