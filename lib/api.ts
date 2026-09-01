@@ -137,6 +137,20 @@ export async function fetchFeed(): Promise<Post[]> {
 }
 
 /**
+ * Explore search. `query` is matched against the food post (title + description,
+ * title weighted higher) and the address of the hotel the post is tagged to.
+ * With no query it returns the newest highly-rated published posts. Uses the
+ * `view=feed` variant so we get full post objects to render and open.
+ */
+export async function fetchExplorePosts(query?: string): Promise<Post[]> {
+  const params = new URLSearchParams({ platform: "web", view: "feed" });
+  const q = query?.trim();
+  if (q) params.set("q", q);
+  const res = await apiFetch(`/feed/explore/?${params.toString()}`);
+  return unwrapEnvelope<Post[]>(res, "Failed to load explore results");
+}
+
+/**
  * Like/save toggles. Each returns the *authoritative* resulting state so the
  * caller can reconcile its optimistic UI rather than blindly flipping a flag
  * that may have drifted from the server (e.g. the feed payload omitting

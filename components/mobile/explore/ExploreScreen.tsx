@@ -1,24 +1,28 @@
 "use client";
 
-import { useState } from "react";
-import Link from "next/link";
-import { useHotels } from "@/hooks/useHotels";
+import { useMemo, useState } from "react";
+import { useExplorePosts } from "@/hooks/useExplorePosts";
+import { usePostActions } from "@/hooks/usePostActions";
+import { toGoogleMapsUrl } from "@/lib/geo";
 import AppShell from "@/components/mobile/AppShell";
-import StorefrontIcon from "./StorefrontIcon";
+import PostCard from "@/components/mobile/feed/PostCard";
+import CommentsSheet from "@/components/mobile/feed/CommentsSheet";
 
 export default function ExploreScreen() {
-  const { hotels, loading, error, refresh } = useHotels();
   const [query, setQuery] = useState("");
+  const { posts, loading, error, refresh, setPosts } = useExplorePosts(query);
+  const { toggleLike, toggleSave, rate, deleteRating } = usePostActions();
 
-  const q = query.trim().toLowerCase();
-  const filtered = q
-    ? hotels.filter(
-        (h) =>
-          h.name.toLowerCase().includes(q) ||
-          h.address.toLowerCase().includes(q) ||
-          h.city.toLowerCase().includes(q)
-      )
-    : hotels;
+  const [openPostId, setOpenPostId] = useState<number | null>(null);
+  const [openCommentPostId, setOpenCommentPostId] = useState<number | null>(null);
+
+  // One seamless grid, highest-rated first (ties keep the backend's order).
+  const ranked = useMemo(
+    () => [...posts].sort((a, b) => (b.avg_rating || 0) - (a.avg_rating || 0)),
+    [posts]
+  );
+
+  const openPost = openPostId != null ? posts.find((p) => p.id === openPostId) : undefined;
 
   return (
     <AppShell active="explore">
@@ -29,7 +33,7 @@ export default function ExploreScreen() {
           Find your next bite
         </p>
         <h1 className="relative mt-1 text-[26px] font-extrabold leading-tight">
-          Explore places 🍽️
+          Explore dishes 🍽️
         </h1>
 
         <div className="relative mt-4 flex items-center gap-2 rounded-2xl bg-white px-4 py-3 shadow-lg shadow-black/10 ring-2 ring-transparent transition focus-within:ring-[#F5C518]">
@@ -49,7 +53,7 @@ export default function ExploreScreen() {
           </svg>
           <input
             type="text"
-            placeholder="Search by name, address or city"
+            placeholder="Search a dish or a place"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="w-full bg-transparent text-[15px] text-[#333] placeholder-[#BBB] outline-none"
@@ -57,13 +61,13 @@ export default function ExploreScreen() {
         </div>
       </header>
 
-      {loading && hotels.length === 0 && (
+      {loading && posts.length === 0 && (
         <div className="flex flex-1 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#6F2DBD] border-t-transparent" />
         </div>
       )}
 
-      {error && hotels.length === 0 && (
+      {error && posts.length === 0 && (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6 text-center">
           <p className="text-[#555] text-sm">{error}</p>
           <button
@@ -75,77 +79,91 @@ export default function ExploreScreen() {
         </div>
       )}
 
-      {!loading && !error && filtered.length === 0 && (
+      {!loading && !error && posts.length === 0 && (
         <div className="flex flex-1 flex-col items-center justify-center gap-2 px-8 text-center">
           <span className="text-4xl">🔍</span>
-          <p className="text-[#1A1A1A] font-bold text-lg">No hotels found</p>
-          <p className="text-[#888] text-sm">Try a different search.</p>
+          <p className="text-[#1A1A1A] font-bold text-lg">Nothing found</p>
+          <p className="text-[#888] text-sm">
+            {query.trim() ? "Try a different dish or place." : "No posts to explore yet."}
+          </p>
         </div>
       )}
 
-      {filtered.length > 0 && (
-        <div className="flex flex-col gap-3 px-4 py-4">
-          {!q && (
-            <p className="flex items-center gap-1.5 px-1 text-xs font-semibold uppercase tracking-wider text-[#9B8DC4]">
-              <span className="h-2 w-2 rounded-full bg-[#F5C518]" />
-              {filtered.length} {filtered.length === 1 ? "place" : "places"} to discover
-            </p>
-          )}
-          {filtered.map((h) => (
-              <Link
-                key={h.id}
-                href={`/explore/${h.id}`}
-                className="group flex items-center gap-3.5 rounded-2xl border border-[#EEE9FA] bg-white p-3 shadow-sm shadow-[#6F2DBD]/5 transition-transform active:scale-[0.98]"
-              >
-                <span className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-linear-to-br from-[#6F2DBD] to-[#A85CF0]">
-                  <StorefrontIcon size={30} color="#FFFFFF" />
-                  <span className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border-2 border-white bg-[#F5C518]">
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="#1A1A1A" stroke="none">
-                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" />
-                    </svg>
-                  </span>
-                </span>
-                <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5 overflow-hidden">
-                  <span className="w-full truncate text-[15px] font-bold text-[#1A1A1A]">
-                    {h.name}
-                  </span>
-                  <span className="flex w-full items-center gap-1 text-xs text-[#888]">
-                    <svg
-                      width="12"
-                      height="12"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="#C4B8E0"
-                      strokeWidth="2.4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="shrink-0"
-                    >
-                      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                      <circle cx="12" cy="10" r="3" />
-                    </svg>
-                    <span className="truncate">
-                      {[h.address, h.city].filter(Boolean).join(", ")}
-                    </span>
-                  </span>
-                </span>
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#F8F5FF]">
-                  <svg
-                    width="18"
-                    height="18"
-                    viewBox="0 0 24 24"
-                    fill="none"
-                    stroke="#6F2DBD"
-                    strokeWidth="2.4"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M9 18l6-6-6-6" />
+      {ranked.length > 0 && (
+        <div className="grid grid-cols-3 gap-1 p-1 pb-24 lg:pb-8">
+          {ranked.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => setOpenPostId(p.id)}
+              className="relative aspect-square overflow-hidden bg-[#E5E0F5] active:scale-[0.98] transition-transform"
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={p.thumbnail_url}
+                alt={p.title}
+                className="h-full w-full object-cover"
+              />
+              {p.media_type === "video" && (
+                <span className="absolute top-1.5 right-1.5 text-white drop-shadow">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                    <path d="M8 5v14l11-7z" />
                   </svg>
                 </span>
-              </Link>
+              )}
+            </button>
           ))}
         </div>
+      )}
+
+      {openPost && (
+        <div className="fixed inset-0 z-50 flex flex-col bg-[#F0EAFB]">
+          <div className="flex items-center gap-2 px-3 py-3">
+            <button
+              onClick={() => setOpenPostId(null)}
+              aria-label="Back"
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm active:scale-90 transition-transform"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M15 18l-6-6 6-6" />
+              </svg>
+            </button>
+          </div>
+          <div className="flex-1 overflow-y-auto pb-8" style={{ WebkitOverflowScrolling: "touch" }}>
+            <PostCard
+              post={openPost}
+              onLike={() => toggleLike(openPost)}
+              onComment={() => setOpenCommentPostId(openPost.id)}
+              onSave={() => toggleSave(openPost)}
+              onRate={(stars) => rate(openPost, stars)}
+              onDeleteRating={() => deleteRating(openPost)}
+              onMap={() => {
+                if (openPost.location) {
+                  window.open(
+                    toGoogleMapsUrl(openPost.location, openPost.title),
+                    "_blank",
+                    "noopener,noreferrer"
+                  );
+                }
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {openCommentPostId !== null && (
+        <CommentsSheet
+          postId={openCommentPostId}
+          onClose={() => setOpenCommentPostId(null)}
+          onCommentCountChange={(delta) =>
+            setPosts((ps) =>
+              ps.map((p) =>
+                p.id === openCommentPostId
+                  ? { ...p, comment_count: Math.max(0, p.comment_count + delta) }
+                  : p
+              )
+            )
+          }
+        />
       )}
     </AppShell>
   );
