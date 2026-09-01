@@ -20,8 +20,10 @@ export type Post = {
   avatar: string | null;
   /** Name of the hotel the post is about. */
   hotel_name: string | null;
-  /** Google Maps URL for the post's location, or null. */
-  location: string | null;
+  /** Google Maps URL for the post's hotel location, or null. */
+  location_link: string | null;
+  /** GeoJSON point of the post itself, or null. */
+  location_point: GeoPoint | null;
 };
 
 /** GeoJSON Point as serialized by the backend: coordinates are [lon, lat]. */

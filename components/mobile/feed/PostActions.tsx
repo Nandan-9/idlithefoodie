@@ -40,7 +40,7 @@ export default function PostActions({
       </button>
 
       {/* Map / Location */}
-      {post.location && (
+      {post.location_link && (
         <button
           onClick={onMap}
           className="flex items-center gap-1.5 active:scale-90 transition-transform"

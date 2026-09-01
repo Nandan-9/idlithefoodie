@@ -100,9 +100,9 @@ export default function FeedList({
             onRate={(stars) => rate(post, stars)}
             onDeleteRating={() => deleteRating(post)}
             onMap={() => {
-              if (post.location) {
+              if (post.location_link) {
                 window.open(
-                  toGoogleMapsUrl(post.location, post.title),
+                  toGoogleMapsUrl(post.location_link, post.title),
                   "_blank",
                   "noopener,noreferrer"
                 );

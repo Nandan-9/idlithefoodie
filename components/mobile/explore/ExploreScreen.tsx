@@ -137,9 +137,9 @@ export default function ExploreScreen() {
               onRate={(stars) => rate(openPost, stars)}
               onDeleteRating={() => deleteRating(openPost)}
               onMap={() => {
-                if (openPost.location) {
+                if (openPost.location_link) {
                   window.open(
-                    toGoogleMapsUrl(openPost.location, openPost.title),
+                    toGoogleMapsUrl(openPost.location_link, openPost.title),
                     "_blank",
                     "noopener,noreferrer"
                   );
