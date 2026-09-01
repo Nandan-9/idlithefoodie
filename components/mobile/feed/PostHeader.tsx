@@ -1,13 +1,29 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import type { Post } from "@/types/feed";
 
-type Props = { post: Post };
+type Props = { post: Post; onDeleteRating: () => void };
 
-export default function PostHeader({ post }: Props) {
+export default function PostHeader({ post, onDeleteRating }: Props) {
   const avatarUrl = post.avatar || undefined;
   const timeAgo = formatTimeAgo(post.created_at);
+  const rated = post.my_rating != null;
+
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    function onDocClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [menuOpen]);
 
   return (
     <div className="flex items-center justify-between px-3 pt-3 pb-2">
@@ -39,16 +55,32 @@ export default function PostHeader({ post }: Props) {
           <p className="text-white/70 text-xs drop-shadow">{timeAgo}</p>
         </div>
       </div>
-      <button
-        aria-label="Post options"
-        className="text-white/80 p-1"
-      >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-          <circle cx="12" cy="5" r="1.5" />
-          <circle cx="12" cy="12" r="1.5" />
-          <circle cx="12" cy="19" r="1.5" />
-        </svg>
-      </button>
+      <div className="relative" ref={menuRef}>
+        <button
+          onClick={() => setMenuOpen((o) => !o)}
+          aria-label="Post options"
+          className="text-white/80 p-1 active:scale-90 transition-transform"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+            <circle cx="12" cy="5" r="1.5" />
+            <circle cx="12" cy="12" r="1.5" />
+            <circle cx="12" cy="19" r="1.5" />
+          </svg>
+        </button>
+        {menuOpen && rated && (
+          <div className="absolute right-0 top-full z-20 mt-1 w-40 rounded-2xl border border-[#E5E0F5] bg-white py-1 shadow-sm">
+            <button
+              onClick={() => {
+                setMenuOpen(false);
+                onDeleteRating();
+              }}
+              className="w-full px-4 py-2 text-left text-sm font-medium text-[#E84855] active:bg-[#F7F5FB]"
+            >
+              Delete rating
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

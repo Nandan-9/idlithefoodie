@@ -12,6 +12,8 @@ export type Post = {
   composite_score: number;
   is_liked: boolean;
   is_saved: boolean;
+  /** The current user's rating for this post (1-5), or null if they haven't rated it. */
+  my_rating: number | null;
   created_at: string;
   user: { id: number; username: string };
   /** Post owner's avatar URL, or null/empty when unset. */

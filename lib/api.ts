@@ -165,6 +165,29 @@ export async function unlikePost(id: number): Promise<boolean> {
   throw new Error("Unlike failed");
 }
 
+/**
+ * Rate a post 1-5. The backend allows one rating per user — a repeat POST comes
+ * back 400 "You have already rated this post", which we swallow (the intent, a
+ * rating existing, already holds) rather than throw.
+ */
+export async function ratePost(id: number, stars: number): Promise<void> {
+  const res = await apiFetch(`/post/${id}/rate/`, {
+    method: "POST",
+    body: JSON.stringify({ stars }),
+  });
+  if (res.ok) return;
+  if (res.status === 400 && /already rated/i.test(await errorText(res))) return;
+  throw new Error("Rating failed");
+}
+
+/** Remove the caller's rating for a post. A missing rating is not an error. */
+export async function unratePost(id: number): Promise<void> {
+  const res = await apiFetch(`/post/${id}/rate/`, { method: "DELETE" });
+  if (res.ok || res.status === 404) return;
+  if (/have not rated|not rated/i.test(await errorText(res))) return;
+  throw new Error("Remove rating failed");
+}
+
 export async function savePost(id: number): Promise<boolean> {
   const res = await apiFetch(`/post/${id}/save/`, { method: "POST" });
   if (res.ok) return true;

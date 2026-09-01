@@ -5,6 +5,7 @@ import PostHeader from "./PostHeader";
 import PostMedia from "./PostMedia";
 import PostMeta from "./PostMeta";
 import PostActions from "./PostActions";
+import PostRating from "./PostRating";
 
 type Props = {
   post: Post;
@@ -12,9 +13,19 @@ type Props = {
   onComment: () => void;
   onSave: () => void;
   onMap: () => void;
+  onRate: (stars: number) => void;
+  onDeleteRating: () => void;
 };
 
-export default function PostCard({ post, onLike, onComment, onSave, onMap }: Props) {
+export default function PostCard({
+  post,
+  onLike,
+  onComment,
+  onSave,
+  onMap,
+  onRate,
+  onDeleteRating,
+}: Props) {
   return (
     <div className="bg-white rounded-3xl shadow-sm overflow-hidden mb-4 mx-3">
       {/* Media with overlaid header and location */}
@@ -26,7 +37,7 @@ export default function PostCard({ post, onLike, onComment, onSave, onMap }: Pro
 
         {/* Header on top of media */}
         <div className="absolute top-0 left-0 right-0">
-          <PostHeader post={post} />
+          <PostHeader post={post} onDeleteRating={onDeleteRating} />
         </div>
       </div>
 
@@ -39,6 +50,7 @@ export default function PostCard({ post, onLike, onComment, onSave, onMap }: Pro
           onSave={onSave}
           onMap={onMap}
         />
+        <PostRating post={post} onRate={onRate} />
         <PostMeta post={post} />
       </div>
     </div>
