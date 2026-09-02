@@ -47,6 +47,7 @@ export default function HotelProfileCard({
             width={130}
             height={130}
             sizes="130px"
+            unoptimized
             className="h-full w-full object-cover"
           />
         ) : (

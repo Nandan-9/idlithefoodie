@@ -17,6 +17,7 @@ export default function ProfileHeader({ profile }: { profile: Profile }) {
             width={112}
             height={112}
             sizes="(max-width: 640px) 96px, 112px"
+            unoptimized
             className="h-full w-full object-cover"
           />
         ) : (

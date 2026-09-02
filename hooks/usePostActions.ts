@@ -6,7 +6,6 @@ import {
   unlikePost,
   savePost,
   unsavePost,
-  ratePost,
   unratePost,
 } from "@/lib/api";
 import { setOverride } from "@/lib/postOverrides";
@@ -45,27 +44,18 @@ export function usePostActions() {
     }
   }, []);
 
-  const rate = useCallback(async (post: Post, stars: number) => {
-    if (post.my_rating != null) return; // one rating per post — read-only once set
-    setOverride(post.id, { my_rating: stars });
+  const deleteRating = useCallback(
+    async (post: Post, onDone?: () => void) => {
+      if (!post.is_mine || post.ratings.length === 0) return;
+      try {
+        await unratePost(post.id);
+        onDone?.();
+      } catch {
+        // leave the feed as-is on failure
+      }
+    },
+    []
+  );
 
-    try {
-      await ratePost(post.id, stars);
-    } catch {
-      setOverride(post.id, { my_rating: post.my_rating ?? null });
-    }
-  }, []);
-
-  const deleteRating = useCallback(async (post: Post) => {
-    if (post.my_rating == null) return;
-    setOverride(post.id, { my_rating: null });
-
-    try {
-      await unratePost(post.id);
-    } catch {
-      setOverride(post.id, { my_rating: post.my_rating });
-    }
-  }, []);
-
-  return { toggleLike, toggleSave, rate, deleteRating };
+  return { toggleLike, toggleSave, deleteRating };
 }

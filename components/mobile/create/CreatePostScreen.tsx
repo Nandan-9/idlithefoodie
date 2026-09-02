@@ -8,14 +8,31 @@ import {
   createPost,
   PostValidationError,
 } from "@/lib/api";
-import type { Hotel } from "@/types/feed";
+import type { Hotel, RatingCategory } from "@/types/feed";
+import { RATING_CATEGORIES } from "@/types/feed";
 import AppShell from "@/components/mobile/AppShell";
 import ConfirmDialog from "@/components/mobile/profile/ConfirmDialog";
+import Stars from "@/components/mobile/explore/Stars";
 import MediaPicker from "./MediaPicker";
 import HotelSelect from "./HotelSelect";
 
+const RATING_LABELS: Record<RatingCategory, string> = {
+  food: "Food",
+  service: "Service",
+  cleanliness: "Cleanliness",
+  value: "Value",
+};
+
+type CategoryRating = { score: number; review: string };
+const EMPTY_RATINGS: Record<RatingCategory, CategoryRating> = {
+  food: { score: 0, review: "" },
+  service: { score: 0, review: "" },
+  cleanliness: { score: 0, review: "" },
+  value: { score: 0, review: "" },
+};
+
 type FieldErrors = Partial<
-  Record<"title" | "description" | "hotel" | "food_spot" | "media_type" | "raw_s3_key", string>
+  Record<"title" | "description" | "hotel" | "food_spot" | "media_type" | "raw_s3_key" | "ratings", string>
 >;
 
 export default function CreatePostScreen() {
@@ -29,6 +46,8 @@ export default function CreatePostScreen() {
   const [foodSpot, setFoodSpot] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [ratings, setRatings] =
+    useState<Record<RatingCategory, CategoryRating>>(EMPTY_RATINGS);
 
   const [phase, setPhase] = useState<"idle" | "uploading" | "publishing">("idle");
   const [banner, setBanner] = useState<string | null>(null);
@@ -38,7 +57,11 @@ export default function CreatePostScreen() {
   const submitting = phase !== "idle";
   const dirty =
     file !== null || hotel !== null || title.trim() !== "" || description.trim() !== "";
-  const canSubmit = !!file && !!hotel && title.trim() !== "" && !submitting;
+  const ratingsComplete = RATING_CATEGORIES.every(
+    (c) => ratings[c].score >= 1 && ratings[c].review.trim() !== ""
+  );
+  const canSubmit =
+    !!file && !!hotel && title.trim() !== "" && ratingsComplete && !submitting;
 
   useEffect(() => {
     return () => {
@@ -101,6 +124,11 @@ export default function CreatePostScreen() {
         media_type: mediaType,
         raw_s3_key: key,
         status: "published",
+        ratings: RATING_CATEGORIES.map((c) => ({
+          category: c,
+          score: ratings[c].score,
+          review: ratings[c].review.trim(),
+        })),
       });
 
       router.push("/feed");
@@ -203,6 +231,47 @@ export default function CreatePostScreen() {
           </div>
           {fieldErrors.description && (
             <p className="text-red-500 text-xs mt-1 ml-1">{fieldErrors.description}</p>
+          )}
+        </div>
+
+        <div>
+          <label className="text-[#888] text-xs font-medium ml-1">
+            Rate your visit
+          </label>
+          <div className="mt-1 flex flex-col gap-3 bg-white border border-[#E5E0F5] rounded-2xl px-4 py-4 shadow-sm">
+            {RATING_CATEGORIES.map((c) => (
+              <div key={c} className="flex flex-col gap-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-[#333] text-sm font-semibold">
+                    {RATING_LABELS[c]}
+                  </span>
+                  <Stars
+                    value={ratings[c].score}
+                    size={22}
+                    interactive
+                    onChange={(score) =>
+                      setRatings((r) => ({ ...r, [c]: { ...r[c], score } }))
+                    }
+                  />
+                </div>
+                <input
+                  type="text"
+                  maxLength={100}
+                  placeholder="Short review (max 100 chars)"
+                  value={ratings[c].review}
+                  onChange={(e) =>
+                    setRatings((r) => ({
+                      ...r,
+                      [c]: { ...r[c], review: e.target.value },
+                    }))
+                  }
+                  className="w-full bg-transparent text-[#333] placeholder-[#BBB] text-[14px] outline-none border-b border-[#EEE] pb-1"
+                />
+              </div>
+            ))}
+          </div>
+          {fieldErrors.ratings && (
+            <p className="text-red-500 text-xs mt-1 ml-1">{fieldErrors.ratings}</p>
           )}
         </div>
 

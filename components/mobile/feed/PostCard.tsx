@@ -13,7 +13,6 @@ type Props = {
   onComment: () => void;
   onSave: () => void;
   onMap: () => void;
-  onRate: (stars: number) => void;
   onDeleteRating: () => void;
 };
 
@@ -23,7 +22,6 @@ export default function PostCard({
   onComment,
   onSave,
   onMap,
-  onRate,
   onDeleteRating,
 }: Props) {
   return (
@@ -50,7 +48,7 @@ export default function PostCard({
           onSave={onSave}
           onMap={onMap}
         />
-        <PostRating post={post} onRate={onRate} />
+        <PostRating post={post} />
         <PostMeta post={post} />
       </div>
     </div>

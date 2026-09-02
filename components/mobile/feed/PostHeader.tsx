@@ -9,7 +9,7 @@ type Props = { post: Post; onDeleteRating: () => void };
 export default function PostHeader({ post, onDeleteRating }: Props) {
   const avatarUrl = post.avatar || undefined;
   const timeAgo = formatTimeAgo(post.created_at);
-  const rated = post.my_rating != null;
+  const canDeleteRating = post.is_mine && post.ratings.length > 0;
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -35,6 +35,7 @@ export default function PostHeader({ post, onDeleteRating }: Props) {
               alt={post.user.username}
               width={36}
               height={36}
+              unoptimized
               className="object-cover w-full h-full"
             />
           ) : (
@@ -67,7 +68,7 @@ export default function PostHeader({ post, onDeleteRating }: Props) {
             <circle cx="12" cy="19" r="1.5" />
           </svg>
         </button>
-        {menuOpen && rated && (
+        {menuOpen && canDeleteRating && (
           <div className="absolute right-0 top-full z-20 mt-1 w-40 rounded-2xl border border-[#E5E0F5] bg-white py-1 shadow-sm">
             <button
               onClick={() => {

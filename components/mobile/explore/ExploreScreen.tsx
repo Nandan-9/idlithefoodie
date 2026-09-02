@@ -11,7 +11,7 @@ import CommentsSheet from "@/components/mobile/feed/CommentsSheet";
 export default function ExploreScreen() {
   const [query, setQuery] = useState("");
   const { posts, loading, error, refresh, setPosts } = useExplorePosts(query);
-  const { toggleLike, toggleSave, rate, deleteRating } = usePostActions();
+  const { toggleLike, toggleSave, deleteRating } = usePostActions();
 
   const [openPostId, setOpenPostId] = useState<number | null>(null);
   const [openCommentPostId, setOpenCommentPostId] = useState<number | null>(null);
@@ -134,8 +134,7 @@ export default function ExploreScreen() {
               onLike={() => toggleLike(openPost)}
               onComment={() => setOpenCommentPostId(openPost.id)}
               onSave={() => toggleSave(openPost)}
-              onRate={(stars) => rate(openPost, stars)}
-              onDeleteRating={() => deleteRating(openPost)}
+              onDeleteRating={() => deleteRating(openPost, refresh)}
               onMap={() => {
                 if (openPost.location_link) {
                   window.open(

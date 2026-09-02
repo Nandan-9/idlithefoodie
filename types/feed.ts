@@ -12,8 +12,10 @@ export type Post = {
   composite_score: number;
   is_liked: boolean;
   is_saved: boolean;
-  /** The current user's rating for this post (1-5), or null if they haven't rated it. */
-  my_rating: number | null;
+  /** True when the current user is the post's author. */
+  is_mine: boolean;
+  /** The author's per-category ratings (0 or 4 rows). */
+  ratings: PostRatingItem[];
   created_at: string;
   user: { id: number; username: string };
   /** Post owner's avatar URL, or null/empty when unset. */
@@ -24,6 +26,21 @@ export type Post = {
   location_link: string | null;
   /** GeoJSON point of the post itself, or null. */
   location_point: GeoPoint | null;
+};
+
+export type RatingCategory = "food" | "service" | "cleanliness" | "value";
+
+export const RATING_CATEGORIES: RatingCategory[] = [
+  "food",
+  "service",
+  "cleanliness",
+  "value",
+];
+
+export type PostRatingItem = {
+  category: RatingCategory;
+  score: number;
+  review: string;
 };
 
 /** GeoJSON Point as serialized by the backend: coordinates are [lon, lat]. */
@@ -70,6 +87,7 @@ export type PostCreate = {
   media_type: "image" | "video";
   raw_s3_key: string;
   status?: "draft" | "published" | "archived";
+  ratings: PostRatingItem[];
 };
 
 export type FeedState = {

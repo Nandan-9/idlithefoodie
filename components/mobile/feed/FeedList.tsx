@@ -23,7 +23,7 @@ export default function FeedList({
   setPosts,
 }: Props) {
   const [openCommentPostId, setOpenCommentPostId] = useState<number | null>(null);
-  const { toggleLike, toggleSave, rate, deleteRating } = usePostActions();
+  const { toggleLike, toggleSave, deleteRating } = usePostActions();
 
   if (loading && posts.length === 0) {
     return (
@@ -97,8 +97,7 @@ export default function FeedList({
             onLike={() => toggleLike(post)}
             onComment={() => setOpenCommentPostId(post.id)}
             onSave={() => toggleSave(post)}
-            onRate={(stars) => rate(post, stars)}
-            onDeleteRating={() => deleteRating(post)}
+            onDeleteRating={() => deleteRating(post, onRefresh)}
             onMap={() => {
               if (post.location_link) {
                 window.open(

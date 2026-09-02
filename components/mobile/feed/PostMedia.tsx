@@ -25,6 +25,7 @@ export default function PostMedia({ post }: Props) {
       src={post.media_url}
       alt={post.title}
       fill
+      unoptimized
       className="object-cover"
       sizes="(max-width: 640px) 100vw, 640px"
       placeholder={post.thumbnail_url ? "blur" : "empty"}
