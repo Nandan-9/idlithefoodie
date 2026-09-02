@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { motion } from "framer-motion";
+import WaitlistForm from "./WaitlistForm";
 
 export default function HeroContent() {
   return (
@@ -46,6 +47,8 @@ export default function HeroContent() {
         </span>
         Launching Soon
       </div>
+
+      <WaitlistForm />
     </div>
   );
 }
