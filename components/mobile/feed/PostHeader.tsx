@@ -45,15 +45,15 @@ export default function PostHeader({ post, onDeleteRating }: Props) {
           )}
         </div>
         <div className="min-w-0">
-          <p className="text-white font-semibold text-sm leading-tight drop-shadow truncate">
+          <p className="text-white font-semibold text-sm leading-tight [text-shadow:0_1px_3px_rgb(0_0_0/0.6)] truncate">
             {post.user.username}
           </p>
           {post.hotel_name && (
-            <p className="text-white/90 text-xs leading-tight drop-shadow truncate">
+            <p className="text-white/90 text-xs leading-tight [text-shadow:0_1px_3px_rgb(0_0_0/0.6)] truncate">
               {post.hotel_name}
             </p>
           )}
-          <p className="text-white/70 text-xs drop-shadow">{timeAgo}</p>
+          <p className="text-white/70 text-xs [text-shadow:0_1px_3px_rgb(0_0_0/0.6)]">{timeAgo}</p>
         </div>
       </div>
       <div className="relative" ref={menuRef}>
