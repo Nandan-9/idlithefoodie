@@ -53,8 +53,11 @@ export default function CreatePostScreen() {
   const [banner, setBanner] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [showDiscard, setShowDiscard] = useState(false);
+  const [step, setStep] = useState<1 | 2 | 3>(1);
 
   const submitting = phase !== "idle";
+  const canNext1 = !!file;
+  const canNext2 = !!hotel && title.trim() !== "";
   const dirty =
     file !== null || hotel !== null || title.trim() !== "" || description.trim() !== "";
   const ratingsComplete = RATING_CATEGORIES.every(
@@ -101,6 +104,10 @@ export default function CreatePostScreen() {
   }
 
   function goBack() {
+    if (step > 1) {
+      setStep((s) => (s - 1) as 1 | 2 | 3);
+      return;
+    }
     if (dirty) setShowDiscard(true);
     else router.push("/feed");
   }
@@ -142,6 +149,9 @@ export default function CreatePostScreen() {
             fe[k as keyof FieldErrors] = Array.isArray(v) ? v[0] : String(v);
           }
           setFieldErrors(fe);
+          if (fe.raw_s3_key || fe.media_type) setStep(1);
+          else if (fe.hotel || fe.title || fe.description || fe.food_spot)
+            setStep(2);
         }
         setBanner(err.message);
       } else {
@@ -159,34 +169,56 @@ export default function CreatePostScreen() {
           </svg>
         </button>
         <h1 className="text-[#1A1A1A] font-bold text-base">New Post</h1>
-        <button
-          onClick={handlePublish}
-          disabled={!canSubmit}
-          className="text-[#6F2DBD] font-bold text-sm disabled:opacity-40"
-        >
-          {phase === "uploading" ? "Uploading…" : phase === "publishing" ? "Publishing…" : "Publish"}
-        </button>
+        <span className="w-6" />
       </div>
 
-      <div className="flex w-full max-w-lg flex-col gap-4 px-4 mt-6 sm:gap-5 sm:px-6">
+      <div className="flex justify-center gap-1.5 py-3">
+        {[1, 2, 3].map((n) => (
+          <span
+            key={n}
+            className={`h-2 rounded-full transition-all ${
+              n === step ? "w-5 bg-[#6F2DBD]" : "w-2 bg-[#E5E0F5]"
+            }`}
+          />
+        ))}
+      </div>
+
+      <div className="flex w-full max-w-lg flex-col gap-4 px-4 mt-2 sm:gap-5 sm:px-6">
         {banner && <p className="text-red-500 text-sm text-center">{banner}</p>}
 
-        <MediaPicker
-          previewUrl={previewUrl}
-          mediaType={mediaType}
-          onSelect={selectFile}
-          onClear={clearFile}
-        />
-        {(fieldErrors.raw_s3_key || fieldErrors.media_type) && (
-          <p className="text-red-500 text-xs -mt-2 ml-1">
-            {fieldErrors.raw_s3_key ?? fieldErrors.media_type}
-          </p>
+        {step === 1 && (
+          <>
+            <MediaPicker
+              previewUrl={previewUrl}
+              mediaType={mediaType}
+              onSelect={selectFile}
+              onClear={clearFile}
+            />
+            {(fieldErrors.raw_s3_key || fieldErrors.media_type) && (
+              <p className="text-red-500 text-xs -mt-2 ml-1">
+                {fieldErrors.raw_s3_key ?? fieldErrors.media_type}
+              </p>
+            )}
+            <button
+              onClick={() => setStep(2)}
+              disabled={!canNext1}
+              className="w-full bg-[#6F2DBD] text-white font-bold text-base rounded-2xl py-4 mt-1 shadow-md active:scale-95 transition-transform disabled:opacity-60"
+            >
+              Next
+            </button>
+          </>
         )}
 
-        <HotelSelect value={hotel} onChange={setHotel} error={fieldErrors.hotel} />
+        {step === 2 && (
+          <>
+            <h2 className="text-[#1A1A1A] font-bold text-lg">
+              Tell us about the wonderful meal you had
+            </h2>
 
-        <div>
-          <label className="text-[#888] text-xs font-medium ml-1">Food spot ID (optional)</label>
+            <HotelSelect value={hotel} onChange={setHotel} error={fieldErrors.hotel} />
+
+            <div>
+              <label className="text-[#888] text-xs font-medium ml-1">Food spot ID (optional)</label>
           <div className="mt-1 bg-white border border-[#E5E0F5] rounded-2xl px-4 py-4 shadow-sm">
             <input
               inputMode="numeric"
@@ -233,6 +265,22 @@ export default function CreatePostScreen() {
             <p className="text-red-500 text-xs mt-1 ml-1">{fieldErrors.description}</p>
           )}
         </div>
+
+            <button
+              onClick={() => setStep(3)}
+              disabled={!canNext2}
+              className="w-full bg-[#6F2DBD] text-white font-bold text-base rounded-2xl py-4 mt-1 shadow-md active:scale-95 transition-transform disabled:opacity-60"
+            >
+              Next
+            </button>
+          </>
+        )}
+
+        {step === 3 && (
+          <>
+            <h2 className="text-[#1A1A1A] font-bold text-lg">
+              Now tell us about the experience you had
+            </h2>
 
         <div>
           <label className="text-[#888] text-xs font-medium ml-1">
@@ -286,6 +334,8 @@ export default function CreatePostScreen() {
             ? "Publishing…"
             : "Publish post"}
         </button>
+          </>
+        )}
       </div>
 
       {showDiscard && (

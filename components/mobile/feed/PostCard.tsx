@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import type { Post } from "@/types/feed";
 import PostHeader from "./PostHeader";
 import PostMedia from "./PostMedia";
@@ -24,6 +25,8 @@ export default function PostCard({
   onMap,
   onDeleteRating,
 }: Props) {
+  const [expanded, setExpanded] = useState(false);
+
   return (
     <div className="bg-white rounded-3xl shadow-sm overflow-hidden mb-4 mx-3">
       {/* Media with overlaid header and location */}
@@ -48,8 +51,12 @@ export default function PostCard({
           onSave={onSave}
           onMap={onMap}
         />
-        <PostRating post={post} />
-        <PostMeta post={post} />
+        <PostMeta
+          post={post}
+          expanded={expanded}
+          onToggle={() => setExpanded((v) => !v)}
+        />
+        {expanded && <PostRating post={post} />}
       </div>
     </div>
   );
