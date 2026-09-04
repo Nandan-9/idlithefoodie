@@ -52,13 +52,16 @@ export default function PostMedia({ post }: Props) {
     if (!next) video.play().catch(() => {});
   };
 
-  if (post.media_type === "video") {
+  const media = post.media[0];
+  if (!media) return null;
+
+  if (media.content_type === "video") {
     return (
       <>
         <video
           ref={videoRef}
-          src={post.media_url}
-          poster={post.thumbnail_url || undefined}
+          src={media.media_url}
+          poster={media.thumbnail_url || undefined}
           loop
           playsInline
           onClick={toggleMuted}
@@ -76,16 +79,18 @@ export default function PostMedia({ post }: Props) {
     );
   }
 
+  if (!media.media_url) return null;
+
   return (
     <Image
-      src={post.media_url}
+      src={media.media_url}
       alt={post.title}
       fill
       unoptimized
       className="object-cover"
       sizes="(max-width: 640px) 100vw, 640px"
-      placeholder={post.thumbnail_url ? "blur" : "empty"}
-      blurDataURL={post.thumbnail_url || undefined}
+      placeholder={media.thumbnail_url ? "blur" : "empty"}
+      blurDataURL={media.thumbnail_url || undefined}
     />
   );
 }

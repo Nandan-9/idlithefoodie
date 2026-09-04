@@ -42,15 +42,15 @@ export default function MyPostsGrid() {
               key={post.id}
               className="relative aspect-square bg-[#E5E0F5]"
             >
-              {post.thumbnail_url && (
+              {post.media[0]?.thumbnail_url && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
-                  src={post.thumbnail_url}
+                  src={post.media[0].thumbnail_url}
                   alt={post.title}
                   className="h-full w-full object-cover"
                 />
               )}
-              {post.media_type === "video" && (
+              {post.media[0]?.content_type === "video" && (
                 <span className="absolute top-1.5 right-1.5 text-white drop-shadow">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M8 5v14l11-7z" />

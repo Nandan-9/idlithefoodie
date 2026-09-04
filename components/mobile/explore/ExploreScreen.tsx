@@ -99,11 +99,11 @@ export default function ExploreScreen() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={p.thumbnail_url}
+                src={p.media[0]?.thumbnail_url}
                 alt={p.title}
                 className="h-full w-full object-cover"
               />
-              {p.media_type === "video" && (
+              {p.media[0]?.content_type === "video" && (
                 <span className="absolute top-1.5 right-1.5 text-white drop-shadow">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M8 5v14l11-7z" />

@@ -1,10 +1,17 @@
+export type PostMediaItem = {
+  content_type: "image" | "video";
+  category: "instant" | "video" | "photos";
+  position: number;
+  media_key: string;
+  media_url: string;
+  thumbnail_url: string;
+};
+
 export type Post = {
   id: number;
   title: string;
   description: string;
-  media_url: string;
-  thumbnail_url: string;
-  media_type: "image" | "video";
+  media: PostMediaItem[];
   like_count: number;
   comment_count: number;
   avg_rating: number;
@@ -58,8 +65,7 @@ export type Comment = {
 
 export type SavedPost = {
   id: number;
-  thumbnail_url: string;
-  media_type: "image" | "video";
+  media: PostMediaItem[];
 };
 
 export type Hotel = {
@@ -79,12 +85,18 @@ export type Hotel = {
 
 export type UploadUrl = { upload_url: string; key: string };
 
+export type PostCreateMedia = {
+  content_type: "image" | "video";
+  category: "instant" | "video" | "photos";
+  media_key: string;
+  position?: number;
+};
+
 export type PostCreate = {
   hotel: number;
   title: string;
   description?: string;
-  media_type: "image" | "video";
-  raw_s3_key: string;
+  media: PostCreateMedia[];
   status?: "draft" | "published" | "archived";
   ratings: PostRatingItem[];
 };

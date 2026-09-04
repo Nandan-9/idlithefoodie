@@ -32,7 +32,7 @@ const EMPTY_RATINGS: Record<RatingCategory, CategoryRating> = {
 };
 
 type FieldErrors = Partial<
-  Record<"title" | "description" | "hotel" | "media_type" | "raw_s3_key" | "ratings", string>
+  Record<"title" | "description" | "hotel" | "media" | "ratings", string>
 >;
 
 export default function CreatePostScreen() {
@@ -59,9 +59,7 @@ export default function CreatePostScreen() {
   const canNext2 = !!hotel && title.trim() !== "";
   const dirty =
     file !== null || hotel !== null || title.trim() !== "" || description.trim() !== "";
-  const ratingsComplete = RATING_CATEGORIES.every(
-    (c) => ratings[c].score >= 1 && ratings[c].review.trim() !== ""
-  );
+  const ratingsComplete = RATING_CATEGORIES.every((c) => ratings[c].score >= 1);
   const canSubmit =
     !!file && !!hotel && title.trim() !== "" && ratingsComplete && !submitting;
 
@@ -89,7 +87,7 @@ export default function CreatePostScreen() {
       return;
     }
     setBanner(null);
-    setFieldErrors((fe) => ({ ...fe, raw_s3_key: undefined, media_type: undefined }));
+    setFieldErrors((fe) => ({ ...fe, media: undefined }));
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     setFile(next);
     setMediaType(isVideo ? "video" : "image");
@@ -126,8 +124,13 @@ export default function CreatePostScreen() {
         hotel: hotel.id,
         title: title.trim(),
         description: description.trim(),
-        media_type: mediaType,
-        raw_s3_key: key,
+        media: [
+          {
+            content_type: mediaType,
+            category: mediaType === "video" ? "video" : "instant",
+            media_key: key,
+          },
+        ],
         status: "published",
         ratings: RATING_CATEGORIES.map((c) => ({
           category: c,
@@ -147,7 +150,7 @@ export default function CreatePostScreen() {
             fe[k as keyof FieldErrors] = Array.isArray(v) ? v[0] : String(v);
           }
           setFieldErrors(fe);
-          if (fe.raw_s3_key || fe.media_type) setStep(1);
+          if (fe.media) setStep(1);
           else if (fe.hotel || fe.title || fe.description)
             setStep(2);
         }
@@ -192,9 +195,9 @@ export default function CreatePostScreen() {
               onSelect={selectFile}
               onClear={clearFile}
             />
-            {(fieldErrors.raw_s3_key || fieldErrors.media_type) && (
+            {fieldErrors.media && (
               <p className="text-red-500 text-xs -mt-2 ml-1">
-                {fieldErrors.raw_s3_key ?? fieldErrors.media_type}
+                {fieldErrors.media}
               </p>
             )}
             <button
@@ -287,7 +290,7 @@ export default function CreatePostScreen() {
                 <input
                   type="text"
                   maxLength={100}
-                  placeholder="Short review (max 100 chars)"
+                  placeholder="Short review (optional, max 100 chars)"
                   value={ratings[c].review}
                   onChange={(e) =>
                     setRatings((r) => ({
