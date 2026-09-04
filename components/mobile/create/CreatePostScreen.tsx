@@ -32,7 +32,7 @@ const EMPTY_RATINGS: Record<RatingCategory, CategoryRating> = {
 };
 
 type FieldErrors = Partial<
-  Record<"title" | "description" | "hotel" | "food_spot" | "media_type" | "raw_s3_key" | "ratings", string>
+  Record<"title" | "description" | "hotel" | "media_type" | "raw_s3_key" | "ratings", string>
 >;
 
 export default function CreatePostScreen() {
@@ -43,7 +43,6 @@ export default function CreatePostScreen() {
   const [mediaType, setMediaType] = useState<"image" | "video">("image");
 
   const [hotel, setHotel] = useState<Hotel | null>(null);
-  const [foodSpot, setFoodSpot] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [ratings, setRatings] =
@@ -125,7 +124,6 @@ export default function CreatePostScreen() {
       setPhase("publishing");
       await createPost({
         hotel: hotel.id,
-        food_spot: foodSpot.trim() ? Number(foodSpot.trim()) : null,
         title: title.trim(),
         description: description.trim(),
         media_type: mediaType,
@@ -150,7 +148,7 @@ export default function CreatePostScreen() {
           }
           setFieldErrors(fe);
           if (fe.raw_s3_key || fe.media_type) setStep(1);
-          else if (fe.hotel || fe.title || fe.description || fe.food_spot)
+          else if (fe.hotel || fe.title || fe.description)
             setStep(2);
         }
         setBanner(err.message);
@@ -216,22 +214,6 @@ export default function CreatePostScreen() {
             </h2>
 
             <HotelSelect value={hotel} onChange={setHotel} error={fieldErrors.hotel} />
-
-            <div>
-              <label className="text-[#888] text-xs font-medium ml-1">Food spot ID (optional)</label>
-          <div className="mt-1 bg-white border border-[#E5E0F5] rounded-2xl px-4 py-4 shadow-sm">
-            <input
-              inputMode="numeric"
-              placeholder="e.g. 5"
-              value={foodSpot}
-              onChange={(e) => setFoodSpot(e.target.value.replace(/[^0-9]/g, ""))}
-              className="w-full bg-transparent text-[#333] placeholder-[#BBB] text-[15px] outline-none"
-            />
-          </div>
-          {fieldErrors.food_spot && (
-            <p className="text-red-500 text-xs mt-1 ml-1">{fieldErrors.food_spot}</p>
-          )}
-        </div>
 
         <div>
           <label className="text-[#888] text-xs font-medium ml-1">Title</label>

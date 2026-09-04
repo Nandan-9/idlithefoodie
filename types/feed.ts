@@ -81,7 +81,6 @@ export type UploadUrl = { upload_url: string; key: string };
 
 export type PostCreate = {
   hotel: number;
-  food_spot?: number | null;
   title: string;
   description?: string;
   media_type: "image" | "video";
