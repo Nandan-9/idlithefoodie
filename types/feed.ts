@@ -97,6 +97,7 @@ export type PostCreate = {
   media: PostCreateMedia[];
   status?: "draft" | "published" | "archived";
   ratings: PostRatingItem[];
+  post_type?: "regular" | "instant";
 };
 
 export type PostUpdate = {

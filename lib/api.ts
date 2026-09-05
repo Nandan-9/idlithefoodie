@@ -150,6 +150,18 @@ export async function fetchFeed(): Promise<Post[]> {
 }
 
 /**
+ * The instant-post feed — short 24h-lived videos, oldest first. Unlike
+ * `/feed/`, this endpoint is DRF-paginated (`{ count, next, previous, results }`);
+ * we ask for a single large page and return `results`.
+ */
+export async function fetchInstantFeed(): Promise<Post[]> {
+  const res = await apiFetch(`/feed/instant/?platform=web&limit=100`);
+  if (!res.ok) throw new Error("Failed to load instant feed");
+  const body = await res.json();
+  return (body?.results ?? []) as Post[];
+}
+
+/**
  * Explore search. `query` is matched against the food post description and
  * the address of the hotel the post is tagged to. With no query it returns
  * the newest highly-rated published posts. Uses the `view=feed` variant so
@@ -306,6 +318,35 @@ async function unwrapEnvelope<T>(res: Response, fallback: string): Promise<T> {
 export async function fetchHotels(): Promise<Hotel[]> {
   const res = await apiFetch(`/hotel/list/?platform=web`);
   return unwrapEnvelope<Hotel[]>(res, "Failed to load hotels");
+}
+
+/** Nearest active hotel to a point (within the backend's radius), or null. */
+export async function fetchNearestHotel(
+  latitude: number,
+  longitude: number
+): Promise<Hotel | null> {
+  const res = await apiFetch(`/hotel/nearest/`, {
+    method: "POST",
+    body: JSON.stringify({ latitude, longitude }),
+  });
+  if (res.status === 404) return null;
+  const data = await unwrapEnvelope<{
+    id: number;
+    name: string;
+    address?: string;
+    city?: string;
+    phone_number?: string;
+  }>(res, "Failed to detect nearest hotel");
+  return {
+    id: data.id,
+    name: data.name,
+    address: data.address ?? "",
+    city: data.city ?? "",
+    phone_number: data.phone_number ?? "",
+    email: "",
+    description: "",
+    location: null,
+  };
 }
 
 /** Step 1: get a presigned S3 PUT URL bound to the exact content type. */

@@ -7,9 +7,11 @@ import {
   savePost,
   unsavePost,
   unratePost,
+  updatePost,
+  deletePost,
 } from "@/lib/api";
 import { setOverride } from "@/lib/postOverrides";
-import type { Post } from "@/types/feed";
+import type { Post, PostUpdate } from "@/types/feed";
 
 /**
  * Like / save toggles.
@@ -57,5 +59,23 @@ export function usePostActions() {
     []
   );
 
-  return { toggleLike, toggleSave, deleteRating };
+  const editPost = useCallback(
+    async (post: Post, updates: PostUpdate, onDone?: () => void) => {
+      if (!post.is_mine) return;
+      await updatePost(post.id, updates);
+      onDone?.();
+    },
+    []
+  );
+
+  const removePost = useCallback(
+    async (post: Post, onDone?: () => void) => {
+      if (!post.is_mine) return;
+      await deletePost(post.id);
+      onDone?.();
+    },
+    []
+  );
+
+  return { toggleLike, toggleSave, deleteRating, editPost, removePost };
 }

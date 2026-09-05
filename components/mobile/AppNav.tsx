@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 
-type Tab = "home" | "explore" | "create" | "saved" | "profile";
+type Tab = "home" | "instant" | "explore" | "create" | "saved" | "profile";
 
 type Props = { active?: Tab };
 
@@ -18,7 +18,7 @@ export default function AppNav({ active = "home" }: Props) {
       </div>
 
       <NavBtn href="/feed" icon={<HomeIcon />} label="Home" active={active === "home"} />
-      <NavBtn href="/explore" icon={<ExploreIcon />} label="Explore" active={active === "explore"} />
+      <NavBtn href="/instant" icon={<InstantIcon />} label="Instant" active={active === "instant"} />
 
       {/* Create button */}
       <Link
@@ -35,7 +35,7 @@ export default function AppNav({ active = "home" }: Props) {
         <span className="hidden text-sm font-bold lg:inline">Create</span>
       </Link>
 
-      <NavBtn href="/saved" icon={<SavedIcon />} label="Saved" active={active === "saved"} />
+      <NavBtn href="/explore" icon={<ExploreIcon />} label="Explore" active={active === "explore"} />
       <NavBtn href="/profile" icon={<ProfileIcon />} label="Profile" active={active === "profile"} />
     </nav>
   );
@@ -78,19 +78,19 @@ function HomeIcon() {
   );
 }
 
+function InstantIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+    </svg>
+  );
+}
+
 function ExploreIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="11" cy="11" r="8" />
       <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-  );
-}
-
-function SavedIcon() {
-  return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
     </svg>
   );
 }

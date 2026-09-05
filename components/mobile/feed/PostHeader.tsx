@@ -4,12 +4,18 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import type { Post } from "@/types/feed";
 
-type Props = { post: Post; onDeleteRating: () => void };
+type Props = {
+  post: Post;
+  onDeleteRating: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
+};
 
-export default function PostHeader({ post, onDeleteRating }: Props) {
+export default function PostHeader({ post, onDeleteRating, onEdit, onDelete }: Props) {
   const avatarUrl = post.avatar || undefined;
   const timeAgo = formatTimeAgo(post.created_at);
   const canDeleteRating = post.is_mine && post.ratings.length > 0;
+  const hasMenu = canDeleteRating || (post.is_mine && (onEdit || onDelete));
 
   const [menuOpen, setMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -68,17 +74,41 @@ export default function PostHeader({ post, onDeleteRating }: Props) {
             <circle cx="12" cy="19" r="1.5" />
           </svg>
         </button>
-        {menuOpen && canDeleteRating && (
+        {menuOpen && hasMenu && (
           <div className="absolute right-0 top-full z-20 mt-1 w-40 rounded-2xl border border-[#E5E0F5] bg-white py-1 shadow-sm">
-            <button
-              onClick={() => {
-                setMenuOpen(false);
-                onDeleteRating();
-              }}
-              className="w-full px-4 py-2 text-left text-sm font-medium text-[#E84855] active:bg-[#F7F5FB]"
-            >
-              Delete rating
-            </button>
+            {post.is_mine && onEdit && (
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  onEdit();
+                }}
+                className="w-full px-4 py-2 text-left text-sm font-medium text-[#1A1A1A] active:bg-[#F7F5FB]"
+              >
+                Edit post
+              </button>
+            )}
+            {canDeleteRating && (
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  onDeleteRating();
+                }}
+                className="w-full px-4 py-2 text-left text-sm font-medium text-[#E84855] active:bg-[#F7F5FB]"
+              >
+                Delete rating
+              </button>
+            )}
+            {post.is_mine && onDelete && (
+              <button
+                onClick={() => {
+                  setMenuOpen(false);
+                  onDelete();
+                }}
+                className="w-full px-4 py-2 text-left text-sm font-medium text-[#E84855] active:bg-[#F7F5FB]"
+              >
+                Delete post
+              </button>
+            )}
           </div>
         )}
       </div>

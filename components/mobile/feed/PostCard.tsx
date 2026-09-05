@@ -15,6 +15,8 @@ type Props = {
   onSave: () => void;
   onMap: () => void;
   onDeleteRating: () => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 };
 
 export default function PostCard({
@@ -24,6 +26,8 @@ export default function PostCard({
   onSave,
   onMap,
   onDeleteRating,
+  onEdit,
+  onDelete,
 }: Props) {
   const [expanded, setExpanded] = useState(false);
 
@@ -38,7 +42,12 @@ export default function PostCard({
 
         {/* Header on top of media */}
         <div className="absolute top-0 left-0 right-0">
-          <PostHeader post={post} onDeleteRating={onDeleteRating} />
+          <PostHeader
+            post={post}
+            onDeleteRating={onDeleteRating}
+            onEdit={onEdit}
+            onDelete={onDelete}
+          />
         </div>
       </div>
 

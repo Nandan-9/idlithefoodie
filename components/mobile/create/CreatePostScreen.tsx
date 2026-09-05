@@ -15,6 +15,7 @@ import ConfirmDialog from "@/components/mobile/profile/ConfirmDialog";
 import Stars from "@/components/mobile/explore/Stars";
 import MediaPicker from "./MediaPicker";
 import HotelSelect from "./HotelSelect";
+import CameraCaptureScreen from "./CameraCaptureScreen";
 
 const RATING_LABELS: Record<RatingCategory, string> = {
   food: "Food",
@@ -51,7 +52,7 @@ export default function CreatePostScreen() {
   const [banner, setBanner] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [showDiscard, setShowDiscard] = useState(false);
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
 
   const submitting = phase !== "idle";
   const canNext1 = !!file;
@@ -108,13 +109,27 @@ export default function CreatePostScreen() {
 
   async function handlePublish() {
     if (!canSubmit || !file || !hotel) return;
+    await publish(file, mediaType, "regular");
+  }
+
+  async function handleInstantCapture(clipFile: File) {
+    if (submitting || !hotel || !ratingsComplete) return;
+    await publish(clipFile, "video", "instant");
+  }
+
+  async function publish(
+    mediaFile: File,
+    type: "image" | "video",
+    postType: "regular" | "instant"
+  ) {
+    if (!hotel) return;
     setBanner(null);
     setFieldErrors({});
 
     try {
       setPhase("uploading");
-      const { upload_url, key } = await getUploadUrl(file.name, file.type);
-      await uploadFileToS3(upload_url, file);
+      const { upload_url, key } = await getUploadUrl(mediaFile.name, mediaFile.type);
+      await uploadFileToS3(upload_url, mediaFile);
 
       setPhase("publishing");
       await createPost({
@@ -122,8 +137,13 @@ export default function CreatePostScreen() {
         description: description.trim(),
         media: [
           {
-            content_type: mediaType,
-            category: mediaType === "video" ? "video" : "instant",
+            content_type: type,
+            category:
+              postType === "instant"
+                ? "instant"
+                : type === "video"
+                ? "video"
+                : "instant",
             media_key: key,
           },
         ],
@@ -133,6 +153,7 @@ export default function CreatePostScreen() {
           score: ratings[c].score,
           review: ratings[c].review.trim(),
         })),
+        ...(postType === "instant" ? { post_type: "instant" as const } : {}),
       });
 
       router.push("/feed");
@@ -146,15 +167,45 @@ export default function CreatePostScreen() {
             fe[k as keyof FieldErrors] = Array.isArray(v) ? v[0] : String(v);
           }
           setFieldErrors(fe);
-          if (fe.media) setStep(1);
-          else if (fe.hotel || fe.description)
-            setStep(2);
+          if (postType === "regular") {
+            if (fe.media) setStep(1);
+            else if (fe.hotel || fe.description) setStep(2);
+          }
         }
         setBanner(err.message);
       } else {
         setBanner("Upload failed. Please check your connection and try again.");
       }
     }
+  }
+
+  if (step === 0) {
+    return (
+      <CameraCaptureScreen
+        hotel={hotel}
+        onHotelChange={setHotel}
+        description={description}
+        onDescriptionChange={setDescription}
+        ratings={ratings}
+        onRatingChange={(category, score) =>
+          setRatings((r) => ({ ...r, [category]: { ...r[category], score } }))
+        }
+        ratingsComplete={ratingsComplete}
+        onCapturePhoto={(f) => {
+          selectFile(f);
+          setStep(2);
+        }}
+        onCaptureVideo={(f) => {
+          selectFile(f);
+          setStep(2);
+        }}
+        onCaptureInstant={handleInstantCapture}
+        onFallback={() => setStep(1)}
+        onClose={() => router.push("/feed")}
+        submitting={submitting}
+        banner={banner}
+      />
+    );
   }
 
   return (
