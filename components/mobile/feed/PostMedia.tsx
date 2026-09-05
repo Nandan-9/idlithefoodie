@@ -84,7 +84,7 @@ export default function PostMedia({ post }: Props) {
   return (
     <Image
       src={media.media_url}
-      alt={post.title}
+      alt={post.hotel_name ?? post.description}
       fill
       unoptimized
       className="object-cover"

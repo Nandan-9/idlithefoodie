@@ -44,7 +44,7 @@ export default function HotelPostsGrid({ posts }: { posts: Post[] }) {
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
                     src={post.media[0].thumbnail_url}
-                    alt={post.title}
+                    alt={post.description}
                     className="h-full w-full object-cover"
                   />
                 ) : (
@@ -52,12 +52,6 @@ export default function HotelPostsGrid({ posts }: { posts: Post[] }) {
                     <StorefrontIcon size={28} />
                   </div>
                 )}
-
-                <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-2 pb-1.5 pt-6">
-                  <p className="line-clamp-1 text-[11px] font-semibold text-white">
-                    {post.title}
-                  </p>
-                </div>
 
                 {post.media[0]?.content_type === "video" && (
                   <span className="absolute right-1.5 top-1.5 text-white drop-shadow">

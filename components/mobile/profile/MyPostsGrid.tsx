@@ -46,7 +46,7 @@ export default function MyPostsGrid() {
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={post.media[0].thumbnail_url}
-                  alt={post.title}
+                  alt={post.hotel_name ?? post.description}
                   className="h-full w-full object-cover"
                 />
               )}

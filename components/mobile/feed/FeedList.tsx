@@ -4,6 +4,8 @@ import type { Post } from "@/types/feed";
 import { useState } from "react";
 import PostCard from "./PostCard";
 import CommentsSheet from "./CommentsSheet";
+import EditPostDialog from "./EditPostDialog";
+import ConfirmDialog from "@/components/mobile/profile/ConfirmDialog";
 import { toGoogleMapsUrl } from "@/lib/geo";
 import { usePostActions } from "@/hooks/usePostActions";
 
@@ -23,7 +25,12 @@ export default function FeedList({
   setPosts,
 }: Props) {
   const [openCommentPostId, setOpenCommentPostId] = useState<number | null>(null);
-  const { toggleLike, toggleSave, deleteRating } = usePostActions();
+  const [editingPostId, setEditingPostId] = useState<number | null>(null);
+  const [deletingPostId, setDeletingPostId] = useState<number | null>(null);
+  const { toggleLike, toggleSave, deleteRating, editPost, removePost } = usePostActions();
+
+  const editingPost = editingPostId != null ? posts.find((p) => p.id === editingPostId) : undefined;
+  const deletingPost = deletingPostId != null ? posts.find((p) => p.id === deletingPostId) : undefined;
 
   if (loading && posts.length === 0) {
     return (
@@ -98,10 +105,12 @@ export default function FeedList({
             onComment={() => setOpenCommentPostId(post.id)}
             onSave={() => toggleSave(post)}
             onDeleteRating={() => deleteRating(post, onRefresh)}
+            onEdit={() => setEditingPostId(post.id)}
+            onDelete={() => setDeletingPostId(post.id)}
             onMap={() => {
               if (post.location_link) {
                 window.open(
-                  toGoogleMapsUrl(post.location_link, post.title),
+                  toGoogleMapsUrl(post.location_link, post.hotel_name ?? undefined),
                   "_blank",
                   "noopener,noreferrer"
                 );
@@ -126,6 +135,40 @@ export default function FeedList({
               )
             )
           }
+        />
+      )}
+
+      {editingPost && (
+        <EditPostDialog
+          post={editingPost}
+          onCancel={() => setEditingPostId(null)}
+          onSave={async (description) => {
+            await editPost(editingPost, { description }, () => {
+              setPosts((ps) =>
+                ps.map((p) => (p.id === editingPost.id ? { ...p, description } : p))
+              );
+              setEditingPostId(null);
+            });
+          }}
+        />
+      )}
+
+      {deletingPost && (
+        <ConfirmDialog
+          title="Delete post?"
+          message="This can't be undone."
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          onCancel={() => setDeletingPostId(null)}
+          onConfirm={async () => {
+            try {
+              await removePost(deletingPost, () => {
+                setPosts((ps) => ps.filter((p) => p.id !== deletingPost.id));
+              });
+            } finally {
+              setDeletingPostId(null);
+            }
+          }}
         />
       )}
     </>

@@ -32,7 +32,7 @@ const EMPTY_RATINGS: Record<RatingCategory, CategoryRating> = {
 };
 
 type FieldErrors = Partial<
-  Record<"title" | "description" | "hotel" | "media" | "ratings", string>
+  Record<"description" | "hotel" | "media" | "ratings", string>
 >;
 
 export default function CreatePostScreen() {
@@ -43,7 +43,6 @@ export default function CreatePostScreen() {
   const [mediaType, setMediaType] = useState<"image" | "video">("image");
 
   const [hotel, setHotel] = useState<Hotel | null>(null);
-  const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [ratings, setRatings] =
     useState<Record<RatingCategory, CategoryRating>>(EMPTY_RATINGS);
@@ -56,12 +55,10 @@ export default function CreatePostScreen() {
 
   const submitting = phase !== "idle";
   const canNext1 = !!file;
-  const canNext2 = !!hotel && title.trim() !== "";
-  const dirty =
-    file !== null || hotel !== null || title.trim() !== "" || description.trim() !== "";
+  const canNext2 = !!hotel;
+  const dirty = file !== null || hotel !== null || description.trim() !== "";
   const ratingsComplete = RATING_CATEGORIES.every((c) => ratings[c].score >= 1);
-  const canSubmit =
-    !!file && !!hotel && title.trim() !== "" && ratingsComplete && !submitting;
+  const canSubmit = !!file && !!hotel && ratingsComplete && !submitting;
 
   useEffect(() => {
     return () => {
@@ -122,7 +119,6 @@ export default function CreatePostScreen() {
       setPhase("publishing");
       await createPost({
         hotel: hotel.id,
-        title: title.trim(),
         description: description.trim(),
         media: [
           {
@@ -151,7 +147,7 @@ export default function CreatePostScreen() {
           }
           setFieldErrors(fe);
           if (fe.media) setStep(1);
-          else if (fe.hotel || fe.title || fe.description)
+          else if (fe.hotel || fe.description)
             setStep(2);
         }
         setBanner(err.message);
@@ -217,23 +213,6 @@ export default function CreatePostScreen() {
             </h2>
 
             <HotelSelect value={hotel} onChange={setHotel} error={fieldErrors.hotel} />
-
-        <div>
-          <label className="text-[#888] text-xs font-medium ml-1">Title</label>
-          <div className="mt-1 bg-white border border-[#E5E0F5] rounded-2xl px-4 py-4 shadow-sm">
-            <input
-              type="text"
-              maxLength={255}
-              placeholder="Best dosa in town"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              className="w-full bg-transparent text-[#333] placeholder-[#BBB] text-[15px] outline-none"
-            />
-          </div>
-          {fieldErrors.title && (
-            <p className="text-red-500 text-xs mt-1 ml-1">{fieldErrors.title}</p>
-          )}
-        </div>
 
         <div>
           <label className="text-[#888] text-xs font-medium ml-1">Description</label>

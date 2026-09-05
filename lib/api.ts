@@ -5,6 +5,7 @@ import type {
   Hotel,
   UploadUrl,
   PostCreate,
+  PostUpdate,
   SavedPost,
 } from "@/types/feed";
 import type {
@@ -149,10 +150,10 @@ export async function fetchFeed(): Promise<Post[]> {
 }
 
 /**
- * Explore search. `query` is matched against the food post (title + description,
- * title weighted higher) and the address of the hotel the post is tagged to.
- * With no query it returns the newest highly-rated published posts. Uses the
- * `view=feed` variant so we get full post objects to render and open.
+ * Explore search. `query` is matched against the food post description and
+ * the address of the hotel the post is tagged to. With no query it returns
+ * the newest highly-rated published posts. Uses the `view=feed` variant so
+ * we get full post objects to render and open.
  */
 export async function fetchExplorePosts(query?: string): Promise<Post[]> {
   const params = new URLSearchParams({ platform: "web", view: "feed" });
@@ -344,6 +345,24 @@ export async function createPost(payload: PostCreate): Promise<Post> {
   });
   const data = await unwrapEnvelope<{ post: Post }>(res, "Failed to create post");
   return data.post;
+}
+
+/** Edit the caller's own post. Only description can be changed. */
+export async function updatePost(
+  id: number,
+  payload: PostUpdate
+): Promise<{ description: string }> {
+  const res = await apiFetch(`/post/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  return unwrapEnvelope(res, "Failed to update post");
+}
+
+/** Delete the caller's own post. */
+export async function deletePost(id: number): Promise<void> {
+  const res = await apiFetch(`/post/${id}/`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Delete failed");
 }
 
 export async function fetchComments(id: number): Promise<Comment[]> {

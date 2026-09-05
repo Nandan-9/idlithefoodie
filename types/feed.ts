@@ -9,7 +9,6 @@ export type PostMediaItem = {
 
 export type Post = {
   id: number;
-  title: string;
   description: string;
   media: PostMediaItem[];
   like_count: number;
@@ -94,11 +93,14 @@ export type PostCreateMedia = {
 
 export type PostCreate = {
   hotel: number;
-  title: string;
   description?: string;
   media: PostCreateMedia[];
   status?: "draft" | "published" | "archived";
   ratings: PostRatingItem[];
+};
+
+export type PostUpdate = {
+  description?: string;
 };
 
 export type FeedState = {

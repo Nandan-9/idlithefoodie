@@ -7,14 +7,18 @@ import { toGoogleMapsUrl } from "@/lib/geo";
 import AppShell from "@/components/mobile/AppShell";
 import PostCard from "@/components/mobile/feed/PostCard";
 import CommentsSheet from "@/components/mobile/feed/CommentsSheet";
+import EditPostDialog from "@/components/mobile/feed/EditPostDialog";
+import ConfirmDialog from "@/components/mobile/profile/ConfirmDialog";
 
 export default function ExploreScreen() {
   const [query, setQuery] = useState("");
   const { posts, loading, error, refresh, setPosts } = useExplorePosts(query);
-  const { toggleLike, toggleSave, deleteRating } = usePostActions();
+  const { toggleLike, toggleSave, deleteRating, editPost, removePost } = usePostActions();
 
   const [openPostId, setOpenPostId] = useState<number | null>(null);
   const [openCommentPostId, setOpenCommentPostId] = useState<number | null>(null);
+  const [editingOpenPost, setEditingOpenPost] = useState(false);
+  const [deletingOpenPost, setDeletingOpenPost] = useState(false);
 
   // One seamless grid, highest-rated first (ties keep the backend's order).
   const ranked = useMemo(
@@ -100,7 +104,7 @@ export default function ExploreScreen() {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
                 src={p.media[0]?.thumbnail_url}
-                alt={p.title}
+                alt={p.hotel_name ?? p.description}
                 className="h-full w-full object-cover"
               />
               {p.media[0]?.content_type === "video" && (
@@ -135,10 +139,12 @@ export default function ExploreScreen() {
               onComment={() => setOpenCommentPostId(openPost.id)}
               onSave={() => toggleSave(openPost)}
               onDeleteRating={() => deleteRating(openPost, refresh)}
+              onEdit={() => setEditingOpenPost(true)}
+              onDelete={() => setDeletingOpenPost(true)}
               onMap={() => {
                 if (openPost.location_link) {
                   window.open(
-                    toGoogleMapsUrl(openPost.location_link, openPost.title),
+                    toGoogleMapsUrl(openPost.location_link, openPost.hotel_name ?? undefined),
                     "_blank",
                     "noopener,noreferrer"
                   );
@@ -147,6 +153,41 @@ export default function ExploreScreen() {
             />
           </div>
         </div>
+      )}
+
+      {openPost && editingOpenPost && (
+        <EditPostDialog
+          post={openPost}
+          onCancel={() => setEditingOpenPost(false)}
+          onSave={async (description) => {
+            await editPost(openPost, { description }, () => {
+              setPosts((ps) =>
+                ps.map((p) => (p.id === openPost.id ? { ...p, description } : p))
+              );
+              setEditingOpenPost(false);
+            });
+          }}
+        />
+      )}
+
+      {openPost && deletingOpenPost && (
+        <ConfirmDialog
+          title="Delete post?"
+          message="This can't be undone."
+          confirmLabel="Delete"
+          cancelLabel="Cancel"
+          onCancel={() => setDeletingOpenPost(false)}
+          onConfirm={async () => {
+            try {
+              await removePost(openPost, () => {
+                setPosts((ps) => ps.filter((p) => p.id !== openPost.id));
+                setOpenPostId(null);
+              });
+            } finally {
+              setDeletingOpenPost(false);
+            }
+          }}
+        />
       )}
 
       {openCommentPostId !== null && (
