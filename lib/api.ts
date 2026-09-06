@@ -498,3 +498,9 @@ export async function fetchUserPosts(userId: number): Promise<Post[]> {
   });
   return unwrapEnvelope<Post[]>(res, "Failed to load posts");
 }
+
+/** The current user's own regular posts (feed shape). Used by the profile page. */
+export async function fetchMyPosts(): Promise<Post[]> {
+  const res = await apiFetch(`/accounts/posts/me/`);
+  return unwrapEnvelope<Post[]>(res, "Failed to load posts");
+}
