@@ -58,7 +58,10 @@ export default function CreatePostScreen() {
   const canNext1 = !!file;
   const canNext2 = !!hotel;
   const dirty = file !== null || hotel !== null || description.trim() !== "";
+  const hasAnyRating = RATING_CATEGORIES.some((c) => ratings[c].score >= 1);
   const ratingsComplete = RATING_CATEGORIES.every((c) => ratings[c].score >= 1);
+  // Instant posts: ratings are optional, but a partial rating is not allowed.
+  const ratingsValid = !hasAnyRating || ratingsComplete;
   const canSubmit = !!file && !!hotel && ratingsComplete && !submitting;
 
   useEffect(() => {
@@ -113,7 +116,7 @@ export default function CreatePostScreen() {
   }
 
   async function handleInstantCapture(clipFile: File) {
-    if (submitting || !hotel || !ratingsComplete) return;
+    if (submitting || !hotel || !ratingsValid) return;
     await publish(clipFile, "video", "instant");
   }
 
@@ -148,11 +151,13 @@ export default function CreatePostScreen() {
           },
         ],
         status: "published",
-        ratings: RATING_CATEGORIES.map((c) => ({
-          category: c,
-          score: ratings[c].score,
-          review: ratings[c].review.trim(),
-        })),
+        ratings: hasAnyRating
+          ? RATING_CATEGORIES.map((c) => ({
+              category: c,
+              score: ratings[c].score,
+              review: ratings[c].review.trim(),
+            }))
+          : [],
         ...(postType === "instant" ? { post_type: "instant" as const } : {}),
       });
 
@@ -190,7 +195,7 @@ export default function CreatePostScreen() {
         onRatingChange={(category, score) =>
           setRatings((r) => ({ ...r, [category]: { ...r[category], score } }))
         }
-        ratingsComplete={ratingsComplete}
+        ratingsValid={ratingsValid}
         onCapturePhoto={(f) => {
           selectFile(f);
           setStep(2);

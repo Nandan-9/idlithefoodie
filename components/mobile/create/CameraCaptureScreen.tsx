@@ -27,7 +27,7 @@ type Props = {
   onDescriptionChange: (value: string) => void;
   ratings: Record<RatingCategory, { score: number; review: string }>;
   onRatingChange: (category: RatingCategory, score: number) => void;
-  ratingsComplete: boolean;
+  ratingsValid: boolean;
   onCapturePhoto: (file: File) => void;
   onCaptureVideo: (file: File) => void;
   onCaptureInstant: (file: File) => void;
@@ -44,7 +44,7 @@ export default function CameraCaptureScreen({
   onDescriptionChange,
   ratings,
   onRatingChange,
-  ratingsComplete,
+  ratingsValid,
   onCapturePhoto,
   onCaptureVideo,
   onCaptureInstant,
@@ -143,8 +143,6 @@ export default function CameraCaptureScreen({
     };
   }, [clip]);
 
-  const instantDisabled = !hotel || !ratingsComplete;
-
   function pickMimeType() {
     return ["video/webm;codecs=vp9,opus", "video/webm", "video/mp4"].find(
       (t) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(t)
@@ -169,7 +167,13 @@ export default function CameraCaptureScreen({
   }
 
   function startInstant() {
-    if (submitting || !ready || instantRecording || instantDisabled) return;
+    if (submitting || !ready || instantRecording) return;
+    if (!hotel || !ratingsValid) {
+      setHint(
+        "Tag a hotel before posting, and rate all 4 categories if you add a rating."
+      );
+      return;
+    }
     const stream = streamRef.current;
     if (!stream) return;
     setHint(null);
@@ -288,7 +292,7 @@ export default function CameraCaptureScreen({
         <button
           type="button"
           onClick={() => (instantRecording ? stopInstant(true) : startInstant())}
-          disabled={submitting || !ready || instantDisabled}
+          disabled={submitting || !ready}
           aria-label={instantRecording ? "Stop recording" : "Start recording"}
           className="relative flex h-[78px] w-[78px] items-center justify-center disabled:opacity-50"
         >
