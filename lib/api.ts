@@ -261,6 +261,16 @@ export async function fetchProfile(): Promise<Profile> {
   return res.json();
 }
 
+/**
+ * Public profile for another user, by user id. Same shape as `fetchProfile`
+ * and, like it, returns the raw serializer (no envelope).
+ */
+export async function fetchUserProfile(userId: number): Promise<Profile> {
+  const res = await apiFetch(`/accounts/profile/${userId}/`);
+  if (!res.ok) throw new Error("Failed to load profile");
+  return res.json();
+}
+
 /** Partial update of the current user's profile. Only send the fields that changed. */
 export async function updateProfile(
   patch: ProfileUpdate
@@ -502,5 +512,11 @@ export async function fetchUserPosts(userId: number): Promise<Post[]> {
 /** The current user's own regular posts (feed shape). Used by the profile page. */
 export async function fetchMyPosts(): Promise<Post[]> {
   const res = await apiFetch(`/accounts/posts/me/`);
+  return unwrapEnvelope<Post[]>(res, "Failed to load posts");
+}
+
+/** Another user's regular posts (feed shape), by user id. Used by the user profile page. */
+export async function fetchUserRegularPosts(userId: number): Promise<Post[]> {
+  const res = await apiFetch(`/accounts/posts/${userId}/`);
   return unwrapEnvelope<Post[]>(res, "Failed to load posts");
 }

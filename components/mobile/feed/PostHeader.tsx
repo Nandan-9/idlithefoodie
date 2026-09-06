@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import type { Post } from "@/types/feed";
 
 type Props = {
@@ -33,7 +34,10 @@ export default function PostHeader({ post, onDeleteRating, onEdit, onDelete }: P
 
   return (
     <div className="flex items-center justify-between px-3 pt-3 pb-2">
-      <div className="flex items-center gap-2 min-w-0">
+      <Link
+        href={`/user/${post.user.id}`}
+        className="flex items-center gap-2 min-w-0 active:opacity-80"
+      >
         <div className="w-9 h-9 rounded-full overflow-hidden bg-[#E5E0F5] flex-shrink-0">
           {avatarUrl ? (
             <Image
@@ -61,7 +65,7 @@ export default function PostHeader({ post, onDeleteRating, onEdit, onDelete }: P
           )}
           <p className="text-white/70 text-xs [text-shadow:0_1px_3px_rgb(0_0_0/0.6)]">{timeAgo}</p>
         </div>
-      </div>
+      </Link>
       <div className="relative" ref={menuRef}>
         <button
           onClick={() => setMenuOpen((o) => !o)}
