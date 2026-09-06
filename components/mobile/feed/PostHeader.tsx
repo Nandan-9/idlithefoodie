@@ -8,13 +8,13 @@ import type { Post } from "@/types/feed";
 type Props = {
   post: Post;
   onDeleteRating: () => void;
+  onHotel: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
 };
 
-export default function PostHeader({ post, onDeleteRating, onEdit, onDelete }: Props) {
+export default function PostHeader({ post, onDeleteRating, onHotel, onEdit, onDelete }: Props) {
   const avatarUrl = post.avatar || undefined;
-  const timeAgo = formatTimeAgo(post.created_at);
   const canDeleteRating = post.is_mine && post.ratings.length > 0;
   const hasMenu = canDeleteRating || (post.is_mine && (onEdit || onDelete));
 
@@ -34,11 +34,11 @@ export default function PostHeader({ post, onDeleteRating, onEdit, onDelete }: P
 
   return (
     <div className="flex items-center justify-between px-3 pt-3 pb-2">
-      <Link
-        href={`/user/${post.user.id}`}
-        className="flex items-center gap-2 min-w-0 active:opacity-80"
-      >
-        <div className="w-9 h-9 rounded-full overflow-hidden bg-[#E5E0F5] flex-shrink-0">
+      <div className="flex items-center gap-2 min-w-0">
+        <Link
+          href={`/user/${post.user.id}`}
+          className="w-9 h-9 rounded-full overflow-hidden bg-[#E5E0F5] flex-shrink-0 active:opacity-80"
+        >
           {avatarUrl ? (
             <Image
               src={avatarUrl}
@@ -53,19 +53,25 @@ export default function PostHeader({ post, onDeleteRating, onEdit, onDelete }: P
               {post.user.username[0]?.toUpperCase()}
             </div>
           )}
-        </div>
+        </Link>
         <div className="min-w-0">
-          <p className="text-white font-semibold text-sm leading-tight [text-shadow:0_1px_3px_rgb(0_0_0/0.6)] truncate">
+          <Link
+            href={`/user/${post.user.id}`}
+            className="block py-0.5 text-white font-semibold text-sm leading-tight [text-shadow:0_1px_3px_rgb(0_0_0/0.6)] truncate active:opacity-80"
+          >
             {post.user.username}
-          </p>
+          </Link>
           {post.hotel_name && (
-            <p className="text-white/90 text-xs leading-tight [text-shadow:0_1px_3px_rgb(0_0_0/0.6)] truncate">
+            <button
+              type="button"
+              onClick={onHotel}
+              className="block mt-1 py-0.5 text-left text-white/90 text-xs leading-tight [text-shadow:0_1px_3px_rgb(0_0_0/0.6)] truncate max-w-full active:opacity-80"
+            >
               {post.hotel_name}
-            </p>
+            </button>
           )}
-          <p className="text-white/70 text-xs [text-shadow:0_1px_3px_rgb(0_0_0/0.6)]">{timeAgo}</p>
         </div>
-      </Link>
+      </div>
       <div className="relative" ref={menuRef}>
         <button
           onClick={() => setMenuOpen((o) => !o)}
@@ -118,14 +124,4 @@ export default function PostHeader({ post, onDeleteRating, onEdit, onDelete }: P
       </div>
     </div>
   );
-}
-
-function formatTimeAgo(dateStr: string): string {
-  const diff = Date.now() - new Date(dateStr).getTime();
-  const mins = Math.floor(diff / 60000);
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const hrs = Math.floor(mins / 60);
-  if (hrs < 24) return `${hrs}h ago`;
-  return `${Math.floor(hrs / 24)}d ago`;
 }

@@ -7,6 +7,7 @@ import PostMedia from "./PostMedia";
 import PostMeta from "./PostMeta";
 import PostActions from "./PostActions";
 import PostRating from "./PostRating";
+import { formatTimeAgo } from "@/components/mobile/explore/timeAgo";
 
 type Props = {
   post: Post;
@@ -45,6 +46,7 @@ export default function PostCard({
           <PostHeader
             post={post}
             onDeleteRating={onDeleteRating}
+            onHotel={onMap}
             onEdit={onEdit}
             onDelete={onDelete}
           />
@@ -66,6 +68,9 @@ export default function PostCard({
           onToggle={() => setExpanded((v) => !v)}
         />
         {expanded && <PostRating post={post} />}
+        <p className="px-1 pt-1.5 text-[11px] text-[#999]">
+          {formatTimeAgo(post.created_at)}
+        </p>
       </div>
     </div>
   );

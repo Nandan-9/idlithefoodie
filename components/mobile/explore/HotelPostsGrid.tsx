@@ -60,6 +60,15 @@ export default function HotelPostsGrid({ posts }: { posts: Post[] }) {
                     </svg>
                   </span>
                 )}
+
+                {post.media.length > 1 && (
+                  <span className="absolute left-1.5 top-1.5 text-white drop-shadow">
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="8" y="8" width="12" height="12" rx="2" />
+                      <path d="M4 16V6a2 2 0 0 1 2-2h10" />
+                    </svg>
+                  </span>
+                )}
               </div>
               <p className="mt-1 text-[11px] text-[#888]">
                 {formatTimeAgo(post.created_at)}

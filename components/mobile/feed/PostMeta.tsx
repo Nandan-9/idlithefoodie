@@ -13,20 +13,20 @@ export default function PostMeta({ post, expanded, onToggle }: Props) {
 
   return (
     <div className="px-1 pt-2 pb-1">
-      <div className="flex justify-end mb-1">
+      <div className="flex items-start gap-2">
+        <button
+          type="button"
+          onClick={onToggle}
+          className={`flex-1 text-left text-[#1A1A1A] font-semibold text-sm leading-relaxed ${
+            expanded ? "" : "line-clamp-2 min-h-[2.4em]"
+          }`}
+        >
+          {post.description}
+        </button>
         <span className="bg-[#F5D90A] text-[#1A1A1A] font-bold text-xs px-2 py-0.5 rounded-full flex-shrink-0">
           {post.avg_rating.toFixed(1)}
         </span>
       </div>
-      <button
-        type="button"
-        onClick={onToggle}
-        className={`text-left text-[#555] text-xs leading-relaxed ${
-          expanded ? "" : "line-clamp-2"
-        }`}
-      >
-        {post.description}
-      </button>
       {tags.length > 0 && (
         <div className="flex flex-wrap gap-1 mt-2">
           {tags.map((tag) => (
