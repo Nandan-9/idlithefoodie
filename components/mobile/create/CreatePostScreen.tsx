@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   getUploadUrl,
@@ -36,12 +36,12 @@ type FieldErrors = Partial<
   Record<"description" | "hotel" | "media" | "ratings", string>
 >;
 
+type MediaItem = { file: File; previewUrl: string; type: "image" | "video" };
+
 export default function CreatePostScreen() {
   const router = useRouter();
 
-  const [file, setFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [mediaType, setMediaType] = useState<"image" | "video">("image");
+  const [items, setItems] = useState<MediaItem[]>([]);
 
   const [hotel, setHotel] = useState<Hotel | null>(null);
   const [description, setDescription] = useState("");
@@ -55,20 +55,24 @@ export default function CreatePostScreen() {
   const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
 
   const submitting = phase !== "idle";
-  const canNext1 = !!file;
+  const canNext1 = items.length > 0;
   const canNext2 = !!hotel;
-  const dirty = file !== null || hotel !== null || description.trim() !== "";
+  const dirty = items.length > 0 || hotel !== null || description.trim() !== "";
   const hasAnyRating = RATING_CATEGORIES.some((c) => ratings[c].score >= 1);
   const ratingsComplete = RATING_CATEGORIES.every((c) => ratings[c].score >= 1);
   // Instant posts: ratings are optional, but a partial rating is not allowed.
   const ratingsValid = !hasAnyRating || ratingsComplete;
-  const canSubmit = !!file && !!hotel && ratingsComplete && !submitting;
+  const canSubmit = items.length > 0 && !!hotel && ratingsComplete && !submitting;
 
   useEffect(() => {
     return () => {
-      if (previewUrl) URL.revokeObjectURL(previewUrl);
+      itemsRef.current.forEach((it) => URL.revokeObjectURL(it.previewUrl));
     };
-  }, [previewUrl]);
+  }, []);
+
+  // Keep a ref so the unmount cleanup can revoke every object URL.
+  const itemsRef = useRef<MediaItem[]>([]);
+  itemsRef.current = items;
 
   useEffect(() => {
     if (!dirty) return;
@@ -80,25 +84,33 @@ export default function CreatePostScreen() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirty]);
 
-  function selectFile(next: File) {
-    const isImage = next.type.startsWith("image/");
-    const isVideo = next.type.startsWith("video/");
-    if (!isImage && !isVideo) {
-      setBanner("Please pick an image or a video file.");
-      return;
+  function addFiles(files: File[]) {
+    const next: MediaItem[] = [];
+    for (const f of files) {
+      const isImage = f.type.startsWith("image/");
+      const isVideo = f.type.startsWith("video/");
+      if (!isImage && !isVideo) {
+        setBanner("Please pick image or video files only.");
+        continue;
+      }
+      next.push({
+        file: f,
+        previewUrl: URL.createObjectURL(f),
+        type: isVideo ? "video" : "image",
+      });
     }
+    if (next.length === 0) return;
     setBanner(null);
     setFieldErrors((fe) => ({ ...fe, media: undefined }));
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setFile(next);
-    setMediaType(isVideo ? "video" : "image");
-    setPreviewUrl(URL.createObjectURL(next));
+    setItems((prev) => [...prev, ...next]);
   }
 
-  function clearFile() {
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    setFile(null);
-    setPreviewUrl(null);
+  function removeItem(index: number) {
+    setItems((prev) => {
+      const target = prev[index];
+      if (target) URL.revokeObjectURL(target.previewUrl);
+      return prev.filter((_, i) => i !== index);
+    });
   }
 
   function goBack() {
@@ -111,45 +123,50 @@ export default function CreatePostScreen() {
   }
 
   async function handlePublish() {
-    if (!canSubmit || !file || !hotel) return;
-    await publish(file, mediaType, "regular");
+    if (!canSubmit || !hotel) return;
+    await publish(
+      items.map((it) => ({ file: it.file, type: it.type })),
+      "regular"
+    );
   }
 
   async function handleInstantCapture(clipFile: File) {
     if (submitting || !hotel || !ratingsValid) return;
-    await publish(clipFile, "video", "instant");
+    await publish([{ file: clipFile, type: "video" }], "instant");
   }
 
   async function publish(
-    mediaFile: File,
-    type: "image" | "video",
+    mediaFiles: { file: File; type: "image" | "video" }[],
     postType: "regular" | "instant"
   ) {
-    if (!hotel) return;
+    if (!hotel || mediaFiles.length === 0) return;
     setBanner(null);
     setFieldErrors({});
 
     try {
       setPhase("uploading");
-      const { upload_url, key } = await getUploadUrl(mediaFile.name, mediaFile.type);
-      await uploadFileToS3(upload_url, mediaFile);
+      const uploaded: { type: "image" | "video"; key: string }[] = [];
+      for (const m of mediaFiles) {
+        const { upload_url, key } = await getUploadUrl(m.file.name, m.file.type);
+        await uploadFileToS3(upload_url, m.file);
+        uploaded.push({ type: m.type, key });
+      }
 
       setPhase("publishing");
       await createPost({
         hotel: hotel.id,
         description: description.trim(),
-        media: [
-          {
-            content_type: type,
-            category:
-              postType === "instant"
-                ? "instant"
-                : type === "video"
-                ? "video"
-                : "instant",
-            media_key: key,
-          },
-        ],
+        media: uploaded.map((u, i) => ({
+          content_type: u.type,
+          category:
+            postType === "instant"
+              ? "instant"
+              : u.type === "video"
+              ? "video"
+              : "photos",
+          media_key: u.key,
+          position: i,
+        })),
         status: "published",
         ratings: hasAnyRating
           ? RATING_CATEGORIES.map((c) => ({
@@ -196,13 +213,9 @@ export default function CreatePostScreen() {
           setRatings((r) => ({ ...r, [category]: { ...r[category], score } }))
         }
         ratingsValid={ratingsValid}
-        onCapturePhoto={(f) => {
-          selectFile(f);
-          setStep(2);
-        }}
-        onCaptureVideo={(f) => {
-          selectFile(f);
-          setStep(2);
+        onCaptureMedia={(files) => {
+          addFiles(files);
+          setStep(1);
         }}
         onCaptureInstant={handleInstantCapture}
         onFallback={() => setStep(1)}
@@ -242,10 +255,12 @@ export default function CreatePostScreen() {
         {step === 1 && (
           <>
             <MediaPicker
-              previewUrl={previewUrl}
-              mediaType={mediaType}
-              onSelect={selectFile}
-              onClear={clearFile}
+              items={items.map((it) => ({
+                previewUrl: it.previewUrl,
+                type: it.type,
+              }))}
+              onAdd={addFiles}
+              onRemove={removeItem}
             />
             {fieldErrors.media && (
               <p className="text-red-500 text-xs -mt-2 ml-1">

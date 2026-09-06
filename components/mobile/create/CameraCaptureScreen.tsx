@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Star, Type, Home, X, MapPin } from "lucide-react";
 import type { Hotel, RatingCategory } from "@/types/feed";
 import { RATING_CATEGORIES } from "@/types/feed";
@@ -28,8 +28,7 @@ type Props = {
   ratings: Record<RatingCategory, { score: number; review: string }>;
   onRatingChange: (category: RatingCategory, score: number) => void;
   ratingsValid: boolean;
-  onCapturePhoto: (file: File) => void;
-  onCaptureVideo: (file: File) => void;
+  onCaptureMedia: (files: File[]) => void;
   onCaptureInstant: (file: File) => void;
   onFallback: () => void;
   onClose: () => void;
@@ -45,8 +44,7 @@ export default function CameraCaptureScreen({
   ratings,
   onRatingChange,
   ratingsValid,
-  onCapturePhoto,
-  onCaptureVideo,
+  onCaptureMedia,
   onCaptureInstant,
   onFallback,
   onClose,
@@ -55,7 +53,6 @@ export default function CameraCaptureScreen({
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
-  const galleryTypeRef = useRef<"image" | "video">("image");
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -70,6 +67,13 @@ export default function CameraCaptureScreen({
   const [ready, setReady] = useState(false);
   const [hint, setHint] = useState<string | null>(null);
   const [clip, setClip] = useState<{ file: File; url: string } | null>(null);
+  const [resolvingPlace, setResolvingPlace] = useState(false);
+  const [needsPlace, setNeedsPlace] = useState(false);
+  const hotelRef = useRef(hotel);
+
+  useEffect(() => {
+    hotelRef.current = hotel;
+  }, [hotel]);
 
   useEffect(() => {
     if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
@@ -115,27 +119,48 @@ export default function CameraCaptureScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Auto-detect the nearest hotel from the device location (instant mode).
+  // Fetch the device location and auto-tag the nearest hotel. Best-effort:
+  // stays silent on permission denial or when no hotel is within radius.
+  const resolvePlace = useCallback(async () => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return;
+    const pos = await new Promise<GeolocationPosition | null>((resolve) => {
+      navigator.geolocation.getCurrentPosition(
+        (p) => resolve(p),
+        () => resolve(null),
+        { enableHighAccuracy: true, timeout: 8000 }
+      );
+    });
+    if (!pos) return;
+    try {
+      const nearest = await fetchNearestHotel(
+        pos.coords.latitude,
+        pos.coords.longitude
+      );
+      if (nearest) onHotelChange(nearest);
+    } catch {
+      /* silent — manual "Tag Hotel" stays available */
+    }
+  }, [onHotelChange]);
+
+  // Eager attempt while the camera is up, so the common case is instant.
   useEffect(() => {
     if (hotel) return;
-    if (typeof navigator === "undefined" || !navigator.geolocation) return;
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const nearest = await fetchNearestHotel(
-            pos.coords.latitude,
-            pos.coords.longitude
-          );
-          if (nearest) onHotelChange(nearest);
-        } catch {
-          /* silent — manual "Tag Hotel" stays available */
-        }
-      },
-      () => {},
-      { enableHighAccuracy: true, timeout: 8000 }
-    );
+    void resolvePlace();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Fallback run after a clip is recorded without a hotel: retry the lookup, and
+  // if it still comes up empty, prompt for the place and open the hotel picker.
+  async function runPlaceFallback() {
+    if (hotelRef.current) return;
+    setResolvingPlace(true);
+    await resolvePlace();
+    setResolvingPlace(false);
+    if (!hotelRef.current) {
+      setNeedsPlace(true);
+      setOverlay("tag");
+    }
+  }
 
   useEffect(() => {
     return () => {
@@ -149,31 +174,21 @@ export default function CameraCaptureScreen({
     );
   }
 
-  function openGallery(type: "image" | "video") {
-    galleryTypeRef.current = type;
+  function openGallery() {
     const input = galleryInputRef.current;
     if (!input) return;
-    input.accept = type === "video" ? "video/*" : "image/*";
     input.value = "";
     input.click();
   }
 
   function handleGalleryChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
+    const files = Array.from(e.target.files ?? []);
     e.target.value = "";
-    if (!file) return;
-    if (galleryTypeRef.current === "video") onCaptureVideo(file);
-    else onCapturePhoto(file);
+    if (files.length) onCaptureMedia(files);
   }
 
   function startInstant() {
     if (submitting || !ready || instantRecording) return;
-    if (!hotel || !ratingsValid) {
-      setHint(
-        "Tag a hotel before posting, and rate all 4 categories if you add a rating."
-      );
-      return;
-    }
     const stream = streamRef.current;
     if (!stream) return;
     setHint(null);
@@ -196,6 +211,7 @@ export default function CameraCaptureScreen({
       setElapsedMs(0);
       if (kept) {
         setClip({ file, url: URL.createObjectURL(file) });
+        void runPlaceFallback();
       } else if (keepRef.current) {
         setHint("Record between 3s and 60s.");
       }
@@ -222,6 +238,23 @@ export default function CameraCaptureScreen({
   function retake() {
     if (clip) URL.revokeObjectURL(clip.url);
     setClip(null);
+    setResolvingPlace(false);
+    setNeedsPlace(false);
+    setHint(null);
+  }
+
+  function finishInstant() {
+    if (!clip) return;
+    if (!hotel) {
+      setNeedsPlace(true);
+      setOverlay("tag");
+      return;
+    }
+    if (!ratingsValid) {
+      setHint("Rate all 4 categories if you add a rating.");
+      return;
+    }
+    onCaptureInstant(clip.file);
   }
 
   const ringPct = Math.min(elapsedMs / MAX_INSTANT_MS, 1);
@@ -239,6 +272,8 @@ export default function CameraCaptureScreen({
       <input
         ref={galleryInputRef}
         type="file"
+        accept="image/*,video/*"
+        multiple
         onChange={handleGalleryChange}
         className="hidden"
       />
@@ -272,20 +307,13 @@ export default function CameraCaptureScreen({
         <div className="flex items-center gap-6 text-sm">
           <button
             type="button"
-            onClick={() => !instantRecording && openGallery("image")}
+            onClick={() => !instantRecording && openGallery()}
             className="font-normal text-white/55"
           >
-            Photo
+            Post
           </button>
           <button type="button" className="font-semibold text-white">
             Instant
-          </button>
-          <button
-            type="button"
-            onClick={() => !instantRecording && openGallery("video")}
-            className="font-normal text-white/55"
-          >
-            Video
           </button>
         </div>
 
@@ -330,8 +358,31 @@ export default function CameraCaptureScreen({
             playsInline
             className="absolute inset-0 h-full w-full object-cover"
           />
-          {hotel && (
+          {hotel ? (
             <HotelChip name={hotel.name} className="absolute left-1/2 top-4 -translate-x-1/2" />
+          ) : resolvingPlace ? (
+            <span className="absolute left-1/2 top-4 -translate-x-1/2 flex items-center gap-2 rounded-full border border-white/35 bg-black/45 px-3 py-1.5 text-[13px] font-semibold text-white">
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              Finding where you are…
+            </span>
+          ) : (
+            needsPlace && (
+              <button
+                type="button"
+                onClick={() => setOverlay("tag")}
+                className="absolute inset-x-4 top-4 flex items-center gap-2 rounded-2xl border border-white/35 bg-black/60 px-3.5 py-3 text-left text-[13px] font-semibold text-white"
+              >
+                <MapPin size={18} className="shrink-0" />
+                <span className="flex-1">
+                  Where are you having this wonderful meal? Tap to tell us the place.
+                </span>
+              </button>
+            )
+          )}
+          {hint && (
+            <p className="absolute inset-x-4 top-20 rounded-full bg-black/60 px-4 py-2 text-center text-xs text-white">
+              {hint}
+            </p>
           )}
           <div className="absolute inset-x-0 bottom-0 flex gap-3 bg-gradient-to-t from-black/60 to-transparent p-4">
             <button
@@ -344,8 +395,8 @@ export default function CameraCaptureScreen({
             </button>
             <button
               type="button"
-              onClick={() => onCaptureInstant(clip.file)}
-              disabled={submitting}
+              onClick={finishInstant}
+              disabled={submitting || resolvingPlace}
               className="flex-1 rounded-2xl bg-[#6F2DBD] py-3 font-bold text-white disabled:opacity-50"
             >
               {submitting ? "Posting…" : "Done"}
@@ -432,8 +483,8 @@ function CameraOverlay({
 }) {
   return (
     <>
-      <div className="absolute inset-0 z-10 bg-black/40" onClick={onClose} aria-hidden />
-      <div className="absolute inset-x-0 bottom-0 z-20 flex max-h-[70vh] flex-col gap-3 rounded-t-3xl bg-[#FAF7F2] p-5 pb-8">
+      <div className="absolute inset-0 z-40 bg-black/40" onClick={onClose} aria-hidden />
+      <div className="absolute inset-x-0 bottom-0 z-50 flex max-h-[70vh] flex-col gap-3 rounded-t-3xl bg-[#FAF7F2] p-5 pb-8">
         <div className="flex items-center justify-end">
           <button onClick={onClose} className="text-sm font-bold text-[#6F2DBD]">
             Done
