@@ -302,6 +302,23 @@ export async function updateProfile(
   return json?.data as ProfileCompletion;
 }
 
+/**
+ * Get a presigned S3 PUT URL for a new avatar image. Mirrors `getUploadUrl`
+ * but hits the accounts endpoint, which files the object under `user-avatar/`.
+ * PUT the image to `upload_url` with `uploadFileToS3`, then persist it with
+ * `updateProfile({ avatar: key })`.
+ */
+export async function getAvatarUploadUrl(
+  file_name: string,
+  content_type: string
+): Promise<UploadUrl> {
+  const res = await apiFetch(`/accounts/avatar-upload-url/`, {
+    method: "POST",
+    body: JSON.stringify({ file_name, content_type }),
+  });
+  return unwrapEnvelope<UploadUrl>(res, "Could not start the image upload");
+}
+
 /** Parse the standard `{ success, message, data, errors }` envelope, or throw. */
 async function unwrapEnvelope<T>(res: Response, fallback: string): Promise<T> {
   let json: {

@@ -1,13 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { fetchProfile, updateProfile, ProfileValidationError } from "@/lib/api";
-import type { ProfileUpdate } from "@/types/profile";
+import Image from "next/image";
+import {
+  fetchProfile,
+  updateProfile,
+  getAvatarUploadUrl,
+  uploadFileToS3,
+  ProfileValidationError,
+} from "@/lib/api";
+import type { Diet, ProfileUpdate } from "@/types/profile";
 import AppShell from "@/components/mobile/AppShell";
 import ConfirmDialog from "./ConfirmDialog";
 
-type FieldErrors = Partial<Record<"name" | "bio", string>>;
+type EditableField = "name" | "bio" | "dob" | "diet" | "food_preference" | "avatar";
+type FieldErrors = Partial<Record<EditableField, string>>;
+
+type FormState = {
+  name: string;
+  bio: string;
+  dob: string;
+  diet: Diet;
+  food_preference: string;
+};
+
+const EMPTY: FormState = { name: "", bio: "", dob: "", diet: "", food_preference: "" };
+
+const MAX_AVATAR_BYTES = 5 * 1024 * 1024;
+const ACCEPTED_AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const BIO_MAX = 300;
+const FOOD_PREF_MAX = 100;
+
+const DIET_OPTIONS: { value: Diet; label: string }[] = [
+  { value: "", label: "Prefer not to say" },
+  { value: "veg", label: "Vegetarian" },
+  { value: "non_veg", label: "Non-Vegetarian" },
+];
+
+/** Today as `YYYY-MM-DD`, for the date input's `max`. */
+function todayISO(): string {
+  return new Date().toISOString().slice(0, 10);
+}
 
 export default function EditProfileScreen() {
   const router = useRouter();
@@ -15,9 +49,18 @@ export default function EditProfileScreen() {
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const [initial, setInitial] = useState({ name: "", bio: "" });
-  const [name, setName] = useState("");
-  const [bio, setBio] = useState("");
+  const [initial, setInitial] = useState<FormState>(EMPTY);
+  const [form, setForm] = useState<FormState>(EMPTY);
+
+  // Avatar. `initialAvatarUrl` is the persisted URL from the server.
+  // `avatarPreview` is what we render (object URL for a fresh pick, else the URL).
+  // `avatarKey` is the S3 key of a freshly uploaded image, pending save.
+  const [initialAvatarUrl, setInitialAvatarUrl] = useState("");
+  const [avatarPreview, setAvatarPreview] = useState("");
+  const [avatarKey, setAvatarKey] = useState<string | null>(null);
+  const [avatarUploading, setAvatarUploading] = useState(false);
+  const objectUrlRef = useRef<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -25,25 +68,43 @@ export default function EditProfileScreen() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [showDiscard, setShowDiscard] = useState(false);
 
-  const dirty = name !== initial.name || bio !== initial.bio;
+  const fieldsDirty = (Object.keys(EMPTY) as (keyof FormState)[]).some(
+    (k) => form[k] !== initial[k]
+  );
+  const dirty = fieldsDirty || avatarKey !== null;
 
   useEffect(() => {
     let cancelled = false;
     fetchProfile()
       .then((p) => {
         if (cancelled) return;
-        setInitial({ name: p.name ?? "", bio: p.bio ?? "" });
-        setName(p.name ?? "");
-        setBio(p.bio ?? "");
+        const next: FormState = {
+          name: p.name ?? "",
+          bio: p.bio ?? "",
+          dob: p.dob ?? "",
+          diet: p.diet ?? "",
+          food_preference: p.food_preference ?? "",
+        };
+        setInitial(next);
+        setForm(next);
+        setInitialAvatarUrl(p.avatar ?? "");
+        setAvatarPreview(p.avatar ?? "");
       })
       .catch(() => {
-        if (!cancelled) setLoadError("Could not load your profile. Go back and try again.");
+        if (!cancelled)
+          setLoadError("Could not load your profile. Go back and try again.");
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
     return () => {
       cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
     };
   }, []);
 
@@ -57,34 +118,98 @@ export default function EditProfileScreen() {
     return () => window.removeEventListener("beforeunload", handler);
   }, [dirty]);
 
+  function set<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
+    setFieldErrors((e) => ({ ...e, [key]: undefined }));
+  }
+
   function goBack() {
-    if (dirty) {
-      setShowDiscard(true);
-    } else {
-      router.push("/profile");
+    if (dirty) setShowDiscard(true);
+    else router.push("/profile");
+  }
+
+  async function handlePickAvatar(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking the same file
+    if (!file) return;
+
+    setBanner(null);
+    setFieldErrors((err) => ({ ...err, avatar: undefined }));
+
+    if (!ACCEPTED_AVATAR_TYPES.includes(file.type)) {
+      setFieldErrors((err) => ({ ...err, avatar: "Use a JPG, PNG or WebP image." }));
+      return;
+    }
+    if (file.size > MAX_AVATAR_BYTES) {
+      setFieldErrors((err) => ({ ...err, avatar: "Image must be under 5 MB." }));
+      return;
+    }
+
+    if (objectUrlRef.current) URL.revokeObjectURL(objectUrlRef.current);
+    const preview = URL.createObjectURL(file);
+    objectUrlRef.current = preview;
+    setAvatarPreview(preview);
+
+    setAvatarUploading(true);
+    try {
+      const { upload_url, key } = await getAvatarUploadUrl(file.name, file.type);
+      await uploadFileToS3(upload_url, file);
+      setAvatarKey(key);
+    } catch {
+      setFieldErrors((err) => ({
+        ...err,
+        avatar: "Upload failed. Please try again.",
+      }));
+      setAvatarPreview(initialAvatarUrl);
+      setAvatarKey(null);
+    } finally {
+      setAvatarUploading(false);
     }
   }
 
+  function removeAvatar() {
+    if (objectUrlRef.current) {
+      URL.revokeObjectURL(objectUrlRef.current);
+      objectUrlRef.current = null;
+    }
+    setAvatarPreview(initialAvatarUrl);
+    setAvatarKey(null);
+    setFieldErrors((err) => ({ ...err, avatar: undefined }));
+  }
+
   async function handleSave() {
-    if (!dirty || saving) return;
+    if (!dirty || saving || avatarUploading) return;
     setSaving(true);
     setBanner(null);
     setFieldErrors({});
 
     const patch: ProfileUpdate = {};
-    if (name !== initial.name) patch.name = name.trim();
-    if (bio !== initial.bio) patch.bio = bio.trim();
+    if (form.name !== initial.name) patch.name = form.name.trim();
+    if (form.bio !== initial.bio) patch.bio = form.bio.trim();
+    if (form.dob !== initial.dob) patch.dob = form.dob || null;
+    if (form.diet !== initial.diet) patch.diet = form.diet;
+    if (form.food_preference !== initial.food_preference)
+      patch.food_preference = form.food_preference.trim();
+    if (avatarKey) patch.avatar = avatarKey;
 
     try {
       await updateProfile(patch);
-      setInitial({ name: patch.name ?? initial.name, bio: patch.bio ?? initial.bio });
       setSaved(true);
       router.push("/profile");
     } catch (err) {
       if (err instanceof ProfileValidationError) {
         const fe: FieldErrors = {};
-        if (err.errors?.name) fe.name = err.errors.name[0];
-        if (err.errors?.bio) fe.bio = err.errors.bio[0];
+        for (const key of [
+          "name",
+          "bio",
+          "dob",
+          "diet",
+          "food_preference",
+          "avatar",
+        ] as EditableField[]) {
+          const msg = err.errors?.[key]?.[0];
+          if (msg) fe[key] = msg;
+        }
         setFieldErrors(fe);
         setBanner(err.message);
       } else {
@@ -95,24 +220,21 @@ export default function EditProfileScreen() {
     }
   }
 
+  const saveDisabled = !dirty || saving || avatarUploading;
+
   return (
     <AppShell nav={false}>
-      {/* Header */}
-      <div className="sticky top-0 z-20 flex items-center justify-between px-4 py-3 bg-white border-b border-[#E5E0F5] sm:px-6">
-        <button
-          onClick={goBack}
-          className="text-[#6F2DBD] p-1 -ml-1"
-          aria-label="Back"
-        >
+      <div className="sticky top-0 z-20 flex items-center justify-between border-b border-[#E5E0F5] bg-white px-4 py-3 sm:px-6">
+        <button onClick={goBack} className="-ml-1 p-1 text-[#6F2DBD]" aria-label="Back">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
-        <h1 className="text-[#1A1A1A] font-bold text-base">Edit Profile</h1>
+        <h1 className="text-base font-bold text-[#1A1A1A]">Edit Profile</h1>
         <button
           onClick={handleSave}
-          disabled={!dirty || saving}
-          className="text-[#6F2DBD] font-bold text-sm disabled:opacity-40"
+          disabled={saveDisabled}
+          className="text-sm font-bold text-[#6F2DBD] disabled:opacity-40"
         >
           {saving ? "Saving…" : "Save"}
         </button>
@@ -124,59 +246,197 @@ export default function EditProfileScreen() {
         </div>
       ) : loadError ? (
         <div className="flex flex-1 flex-col items-center justify-center gap-3 px-6">
-          <p className="text-[#555] text-sm text-center">{loadError}</p>
+          <p className="text-center text-sm text-[#555]">{loadError}</p>
           <button
             onClick={() => router.push("/profile")}
-            className="rounded-2xl bg-[#6F2DBD] text-white font-bold text-sm px-6 py-3"
+            className="rounded-2xl bg-[#6F2DBD] px-6 py-3 text-sm font-bold text-white"
           >
             Back to profile
           </button>
         </div>
       ) : (
         <div className="flex w-full max-w-lg flex-col gap-4 px-4 mt-6 sm:gap-5 sm:px-6 lg:mx-0">
-          {banner && (
-            <p className="text-red-500 text-sm text-center">{banner}</p>
-          )}
+          {banner && <p className="text-center text-sm text-red-500">{banner}</p>}
           {saved && !banner && (
-            <p className="text-[#6F2DBD] text-sm text-center">Saved</p>
+            <p className="text-center text-sm text-[#6F2DBD]">Saved</p>
           )}
 
-          <div>
-            <label className="text-[#888] text-xs font-medium ml-1">Name</label>
-            <div className="mt-1 flex items-center gap-3 bg-white border border-[#E5E0F5] rounded-2xl px-4 py-4 shadow-sm">
-              <input
-                type="text"
-                placeholder="Your name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="flex-1 bg-transparent text-[#333] placeholder-[#BBB] text-[15px] outline-none"
-              />
+          {/* Avatar */}
+          <div className="flex flex-col items-center gap-3">
+            <div className="relative h-24 w-24">
+              <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-[#E5E0F5]">
+                {avatarPreview ? (
+                  <Image
+                    src={avatarPreview}
+                    alt="Profile photo"
+                    width={96}
+                    height={96}
+                    unoptimized
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#9B8DC4" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                )}
+              </div>
+              {avatarUploading && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-full bg-black/40">
+                  <div className="h-6 w-6 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                </div>
+              )}
             </div>
-            {fieldErrors.name && (
-              <p className="text-red-500 text-xs mt-1 ml-1">{fieldErrors.name}</p>
+
+            <div className="flex items-center gap-4">
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={avatarUploading}
+                className="text-sm font-bold text-[#6F2DBD] disabled:opacity-40"
+              >
+                Change photo
+              </button>
+              {avatarKey && !avatarUploading && (
+                <button
+                  type="button"
+                  onClick={removeAvatar}
+                  className="text-sm font-medium text-[#888]"
+                >
+                  Undo
+                </button>
+              )}
+            </div>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept={ACCEPTED_AVATAR_TYPES.join(",")}
+              onChange={handlePickAvatar}
+              className="hidden"
+            />
+            {fieldErrors.avatar && (
+              <p className="text-xs text-red-500">{fieldErrors.avatar}</p>
             )}
           </div>
 
+          {/* Name */}
           <div>
-            <label className="text-[#888] text-xs font-medium ml-1">Bio</label>
-            <div className="mt-1 bg-white border border-[#E5E0F5] rounded-2xl px-4 py-4 shadow-sm">
-              <textarea
-                placeholder="Tell other foodies about yourself"
-                value={bio}
-                onChange={(e) => setBio(e.target.value)}
-                rows={4}
-                className="w-full bg-transparent text-[#333] placeholder-[#BBB] text-[15px] outline-none resize-none"
+            <label className="ml-1 text-xs font-medium text-[#888]">Name</label>
+            <div className="mt-1 flex items-center gap-3 rounded-2xl border border-[#E5E0F5] bg-white px-4 py-4 shadow-sm">
+              <input
+                type="text"
+                placeholder="Your name"
+                maxLength={150}
+                value={form.name}
+                onChange={(e) => set("name", e.target.value)}
+                className="flex-1 bg-transparent text-[15px] text-[#333] placeholder-[#BBB] outline-none"
               />
             </div>
-            {fieldErrors.bio && (
-              <p className="text-red-500 text-xs mt-1 ml-1">{fieldErrors.bio}</p>
+            {fieldErrors.name && (
+              <p className="mt-1 ml-1 text-xs text-red-500">{fieldErrors.name}</p>
+            )}
+          </div>
+
+          {/* Bio */}
+          <div>
+            <label className="ml-1 text-xs font-medium text-[#888]">Bio</label>
+            <div className="mt-1 rounded-2xl border border-[#E5E0F5] bg-white px-4 py-4 shadow-sm">
+              <textarea
+                placeholder="Tell other foodies about yourself"
+                value={form.bio}
+                maxLength={BIO_MAX}
+                onChange={(e) => set("bio", e.target.value)}
+                rows={4}
+                className="w-full resize-none bg-transparent text-[15px] text-[#333] placeholder-[#BBB] outline-none"
+              />
+            </div>
+            <div className="mt-1 ml-1 flex justify-between">
+              {fieldErrors.bio ? (
+                <p className="text-xs text-red-500">{fieldErrors.bio}</p>
+              ) : (
+                <span />
+              )}
+              <span className="text-xs text-[#BBB]">
+                {form.bio.length}/{BIO_MAX}
+              </span>
+            </div>
+          </div>
+
+          {/* Date of birth */}
+          <div>
+            <label className="ml-1 text-xs font-medium text-[#888]">
+              Date of birth
+            </label>
+            <div className="mt-1 flex items-center gap-3 rounded-2xl border border-[#E5E0F5] bg-white px-4 py-4 shadow-sm">
+              <input
+                type="date"
+                value={form.dob}
+                max={todayISO()}
+                onChange={(e) => set("dob", e.target.value)}
+                className="flex-1 bg-transparent text-[15px] text-[#333] outline-none"
+              />
+              {form.dob && (
+                <button
+                  type="button"
+                  onClick={() => set("dob", "")}
+                  className="text-xs font-medium text-[#888]"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            {fieldErrors.dob && (
+              <p className="mt-1 ml-1 text-xs text-red-500">{fieldErrors.dob}</p>
+            )}
+          </div>
+
+          {/* Diet */}
+          <div>
+            <label className="ml-1 text-xs font-medium text-[#888]">Diet</label>
+            <div className="mt-1 flex items-center rounded-2xl border border-[#E5E0F5] bg-white px-4 py-4 shadow-sm">
+              <select
+                value={form.diet}
+                onChange={(e) => set("diet", e.target.value as Diet)}
+                className="flex-1 bg-transparent text-[15px] text-[#333] outline-none"
+              >
+                {DIET_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            {fieldErrors.diet && (
+              <p className="mt-1 ml-1 text-xs text-red-500">{fieldErrors.diet}</p>
+            )}
+          </div>
+
+          {/* Food preference */}
+          <div>
+            <label className="ml-1 text-xs font-medium text-[#888]">
+              Food preference
+            </label>
+            <div className="mt-1 flex items-center gap-3 rounded-2xl border border-[#E5E0F5] bg-white px-4 py-4 shadow-sm">
+              <input
+                type="text"
+                placeholder="e.g. South Indian, spicy, street food"
+                maxLength={FOOD_PREF_MAX}
+                value={form.food_preference}
+                onChange={(e) => set("food_preference", e.target.value)}
+                className="flex-1 bg-transparent text-[15px] text-[#333] placeholder-[#BBB] outline-none"
+              />
+            </div>
+            {fieldErrors.food_preference && (
+              <p className="mt-1 ml-1 text-xs text-red-500">
+                {fieldErrors.food_preference}
+              </p>
             )}
           </div>
 
           <button
             onClick={handleSave}
-            disabled={!dirty || saving}
-            className="w-full bg-[#6F2DBD] text-white font-bold text-base rounded-2xl py-4 mt-1 shadow-md active:scale-95 transition-transform disabled:opacity-60"
+            disabled={saveDisabled}
+            className="mt-1 w-full rounded-2xl bg-[#6F2DBD] py-4 text-base font-bold text-white shadow-md transition-transform active:scale-95 disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save changes"}
           </button>
