@@ -193,7 +193,7 @@ export default function CameraCaptureScreen({
       if (kept) {
         setClip({ file, url: URL.createObjectURL(file) });
       } else if (keepRef.current) {
-        setHint("Hold to record — 3s to 60s.");
+        setHint("Record between 3s and 60s.");
       }
     };
     recorderRef.current = recorder;
@@ -287,11 +287,9 @@ export default function CameraCaptureScreen({
 
         <button
           type="button"
-          onPointerDown={startInstant}
-          onPointerUp={() => stopInstant(true)}
-          onPointerLeave={() => instantRecording && stopInstant(true)}
+          onClick={() => (instantRecording ? stopInstant(true) : startInstant())}
           disabled={submitting || !ready || instantDisabled}
-          aria-label="Hold to record"
+          aria-label={instantRecording ? "Stop recording" : "Start recording"}
           className="relative flex h-[78px] w-[78px] items-center justify-center disabled:opacity-50"
         >
           <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 78 78">
