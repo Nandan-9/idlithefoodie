@@ -15,7 +15,6 @@ const RATING_LABELS: Record<RatingCategory, string> = {
   value: "Value",
 };
 
-type Mode = "photo" | "instant" | "video";
 type Overlay = "rating" | "text" | "tag" | null;
 
 const MAX_INSTANT_MS = 60_000;
@@ -55,6 +54,8 @@ export default function CameraCaptureScreen({
   banner,
 }: Props) {
   const videoRef = useRef<HTMLVideoElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  const galleryTypeRef = useRef<"image" | "video">("image");
   const streamRef = useRef<MediaStream | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
@@ -63,9 +64,7 @@ export default function CameraCaptureScreen({
   const elapsedRef = useRef(0);
   const tickRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  const [mode, setMode] = useState<Mode>("instant");
   const [overlay, setOverlay] = useState<Overlay>(null);
-  const [recording, setRecording] = useState(false);
   const [instantRecording, setInstantRecording] = useState(false);
   const [elapsedMs, setElapsedMs] = useState(0);
   const [ready, setReady] = useState(false);
@@ -145,23 +144,6 @@ export default function CameraCaptureScreen({
   }, [clip]);
 
   const instantDisabled = !hotel || !ratingsComplete;
-  const photoDisabled = submitting || !ready;
-
-  function takePhoto(): File | null {
-    const video = videoRef.current;
-    if (!video || !video.videoWidth) return null;
-    const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return null;
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.92);
-    const bytes = atob(dataUrl.split(",")[1]);
-    const arr = new Uint8Array(bytes.length);
-    for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-    return new File([arr], `photo-${Date.now()}.jpg`, { type: "image/jpeg" });
-  }
 
   function pickMimeType() {
     return ["video/webm;codecs=vp9,opus", "video/webm", "video/mp4"].find(
@@ -169,38 +151,21 @@ export default function CameraCaptureScreen({
     );
   }
 
-  function handleCapture() {
-    if (photoDisabled) return;
+  function openGallery(type: "image" | "video") {
+    galleryTypeRef.current = type;
+    const input = galleryInputRef.current;
+    if (!input) return;
+    input.accept = type === "video" ? "video/*" : "image/*";
+    input.value = "";
+    input.click();
+  }
 
-    if (mode === "video") {
-      if (recording) {
-        recorderRef.current?.stop();
-        return;
-      }
-      const stream = streamRef.current;
-      if (!stream) return;
-      const mimeType = pickMimeType();
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
-      chunksRef.current = [];
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunksRef.current.push(e.data);
-      };
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, { type: mimeType ?? "video/webm" });
-        const ext = mimeType?.includes("mp4") ? "mp4" : "webm";
-        const file = new File([blob], `video-${Date.now()}.${ext}`, { type: blob.type });
-        onCaptureVideo(file);
-        setRecording(false);
-      };
-      recorderRef.current = recorder;
-      recorder.start();
-      setRecording(true);
-      return;
-    }
-
-    // photo
-    const file = takePhoto();
-    if (file) onCapturePhoto(file);
+  function handleGalleryChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (galleryTypeRef.current === "video") onCaptureVideo(file);
+    else onCapturePhoto(file);
   }
 
   function startInstant() {
@@ -267,6 +232,13 @@ export default function CameraCaptureScreen({
         className="absolute inset-0 h-full w-full object-cover"
       />
 
+      <input
+        ref={galleryInputRef}
+        type="file"
+        onChange={handleGalleryChange}
+        className="hidden"
+      />
+
       <button
         type="button"
         onClick={onClose}
@@ -276,7 +248,7 @@ export default function CameraCaptureScreen({
         <X size={20} />
       </button>
 
-      {hotel && mode === "instant" && (
+      {hotel && (
         <HotelChip name={hotel.name} className="absolute left-1/2 top-4 -translate-x-1/2" />
       )}
 
@@ -286,77 +258,64 @@ export default function CameraCaptureScreen({
         </p>
       )}
 
-      {mode === "instant" && (
-        <div className="absolute right-3 top-1/2 flex -translate-y-1/2 flex-col gap-4 rounded-[28px] border border-white/35 bg-white/[0.14] px-2.5 py-4 backdrop-blur-md">
-          <PillItem icon={<Star size={18} />} label="Rating" onClick={() => setOverlay("rating")} />
-          <PillItem icon={<Type size={18} />} label="Text" onClick={() => setOverlay("text")} />
-          <PillItem icon={<Home size={18} />} label="Tag Hotel" onClick={() => setOverlay("tag")} />
-        </div>
-      )}
+      <div className="absolute right-3 top-1/2 flex -translate-y-1/2 flex-col gap-4 rounded-[28px] border border-white/35 bg-white/[0.14] px-2.5 py-4 backdrop-blur-md">
+        <PillItem icon={<Star size={18} />} label="Rating" onClick={() => setOverlay("rating")} />
+        <PillItem icon={<Type size={18} />} label="Text" onClick={() => setOverlay("text")} />
+        <PillItem icon={<Home size={18} />} label="Tag Hotel" onClick={() => setOverlay("tag")} />
+      </div>
 
       <div className="absolute inset-x-0 bottom-0 flex h-[170px] flex-col items-center justify-center gap-[18px] bg-gradient-to-t from-black/60 to-transparent">
         <div className="flex items-center gap-6 text-sm">
-          {(["photo", "instant", "video"] as Mode[]).map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => !instantRecording && setMode(m)}
-              className={
-                mode === m
-                  ? "font-semibold text-white"
-                  : "font-normal text-white/55"
-              }
-            >
-              {m === "photo" ? "Photo" : m === "instant" ? "Instant" : "Video"}
-            </button>
-          ))}
+          <button
+            type="button"
+            onClick={() => !instantRecording && openGallery("image")}
+            className="font-normal text-white/55"
+          >
+            Photo
+          </button>
+          <button type="button" className="font-semibold text-white">
+            Instant
+          </button>
+          <button
+            type="button"
+            onClick={() => !instantRecording && openGallery("video")}
+            className="font-normal text-white/55"
+          >
+            Video
+          </button>
         </div>
 
-        {mode === "instant" ? (
-          <button
-            type="button"
-            onPointerDown={startInstant}
-            onPointerUp={() => stopInstant(true)}
-            onPointerLeave={() => instantRecording && stopInstant(true)}
-            disabled={submitting || !ready || instantDisabled}
-            aria-label="Hold to record"
-            className="relative flex h-[78px] w-[78px] items-center justify-center disabled:opacity-50"
-          >
-            <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 78 78">
-              <circle cx="39" cy="39" r="37" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="4" />
-              {instantRecording && (
-                <circle
-                  cx="39"
-                  cy="39"
-                  r="37"
-                  fill="none"
-                  stroke="#fff"
-                  strokeWidth="4"
-                  strokeLinecap="round"
-                  strokeDasharray={2 * Math.PI * 37}
-                  strokeDashoffset={2 * Math.PI * 37 * (1 - ringPct)}
-                />
-              )}
-            </svg>
-            <span
-              className={`rounded-full bg-[#6F2DBD] transition-all ${
-                instantRecording ? "h-[54px] w-[54px]" : "h-[70px] w-[70px] border-4 border-white"
-              }`}
-            />
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={handleCapture}
-            disabled={photoDisabled}
-            aria-label={mode === "video" ? (recording ? "Stop recording" : "Start recording") : "Capture"}
-            className="flex h-[78px] w-[78px] items-center justify-center rounded-full border-4 border-white bg-[#6F2DBD] shadow-lg active:scale-95 transition-transform disabled:opacity-50"
-          >
-            {mode === "video" && recording && (
-              <span className="h-6 w-6 rounded-sm bg-white" />
+        <button
+          type="button"
+          onPointerDown={startInstant}
+          onPointerUp={() => stopInstant(true)}
+          onPointerLeave={() => instantRecording && stopInstant(true)}
+          disabled={submitting || !ready || instantDisabled}
+          aria-label="Hold to record"
+          className="relative flex h-[78px] w-[78px] items-center justify-center disabled:opacity-50"
+        >
+          <svg className="absolute inset-0 h-full w-full -rotate-90" viewBox="0 0 78 78">
+            <circle cx="39" cy="39" r="37" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="4" />
+            {instantRecording && (
+              <circle
+                cx="39"
+                cy="39"
+                r="37"
+                fill="none"
+                stroke="#fff"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeDasharray={2 * Math.PI * 37}
+                strokeDashoffset={2 * Math.PI * 37 * (1 - ringPct)}
+              />
             )}
-          </button>
-        )}
+          </svg>
+          <span
+            className={`rounded-full bg-[#6F2DBD] transition-all ${
+              instantRecording ? "h-[54px] w-[54px]" : "h-[70px] w-[70px] border-4 border-white"
+            }`}
+          />
+        </button>
       </div>
 
       {clip && (
