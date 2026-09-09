@@ -7,7 +7,6 @@ type Props = {
   onLike: () => void;
   onComment: () => void;
   onSave: () => void;
-  onMap: () => void;
 };
 
 export default function PostActions({
@@ -15,7 +14,6 @@ export default function PostActions({
   onLike,
   onComment,
   onSave,
-  onMap,
 }: Props) {
   return (
     <div className="flex items-center gap-4 px-1 py-2">
@@ -38,17 +36,6 @@ export default function PostActions({
         <CommentIcon />
         <span className="text-[#555] text-xs font-medium">{post.comment_count}</span>
       </button>
-
-      {/* Map / Location */}
-      {post.location_link && (
-        <button
-          onClick={onMap}
-          className="flex items-center gap-1.5 active:scale-90 transition-transform"
-          aria-label="Open location in Google Maps"
-        >
-          <LocationIcon />
-        </button>
-      )}
 
       {/* Save — pushed to right */}
       <button
@@ -74,15 +61,6 @@ function CommentIcon() {
   return (
     <svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
-    </svg>
-  );
-}
-
-function LocationIcon() {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#555" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-      <circle cx="12" cy="10" r="3" />
     </svg>
   );
 }

@@ -28,6 +28,14 @@ export type Post = {
   avatar: string | null;
   /** Name of the hotel the post is about. */
   hotel_name: string | null;
+  /** The hotel the post is about, with its overall rating, or null. */
+  hotel: {
+    id: number;
+    name: string;
+    address: string;
+    average_rating: number | null;
+    rating_count: number;
+  } | null;
   /** Google Maps URL for the post's hotel location, or null. */
   location_link: string | null;
   /** GeoJSON point of the post itself, or null. */

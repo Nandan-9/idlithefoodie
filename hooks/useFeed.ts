@@ -5,6 +5,7 @@ import {
   useEffect,
   useCallback,
   useMemo,
+  useRef,
   useSyncExternalStore,
 } from "react";
 import { fetchFeed } from "@/lib/api";
@@ -25,7 +26,11 @@ export function useFeed() {
     error: null,
   });
 
+  const loadingRef = useRef(false);
+
   const load = useCallback(async () => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
       const posts = await fetchFeed();
@@ -36,13 +41,22 @@ export function useFeed() {
       setState((s) => ({
         ...s,
         loading: false,
-        error: "Could not load feed. Pull down to retry.",
+        error: "Could not load feed. Tap retry.",
       }));
+    } finally {
+      loadingRef.current = false;
     }
   }, []);
 
   useEffect(() => {
     load();
+  }, [load]);
+
+  // Web replacement for pull-to-refresh: refetch when the tab regains focus.
+  useEffect(() => {
+    const onFocus = () => load();
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
   }, [load]);
 
   const refresh = useCallback(() => {

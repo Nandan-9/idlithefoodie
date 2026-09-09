@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import {
   fetchProfile,
@@ -43,8 +43,26 @@ function todayISO(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
+/** Whole years between `iso` (YYYY-MM-DD) and today. */
+function ageFromISO(iso: string): number {
+  const d = new Date(iso);
+  const now = new Date();
+  let age = now.getFullYear() - d.getFullYear();
+  const m = now.getMonth() - d.getMonth();
+  if (m < 0 || (m === 0 && now.getDate() < d.getDate())) age--;
+  return age;
+}
+
 export default function EditProfileScreen() {
   const router = useRouter();
+  const fieldsParam = useSearchParams().get("fields");
+  // When present, restrict the form to just these (incomplete) fields and
+  // apply strict "must fill" validation, mirroring the Flutter complete-profile
+  // flow. Null = the full editor.
+  const filterFields = fieldsParam
+    ? fieldsParam.split(",").map((s) => s.trim()).filter(Boolean)
+    : null;
+  const show = (f: EditableField) => !filterFields || filterFields.includes(f);
 
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -178,7 +196,23 @@ export default function EditProfileScreen() {
   }
 
   async function handleSave() {
-    if (!dirty || saving || avatarUploading) return;
+    if (saving || avatarUploading) return;
+    if (!dirty && !filterFields) return;
+
+    if (filterFields) {
+      const fe: FieldErrors = {};
+      if (show("name") && !form.name.trim()) fe.name = "Please add your name.";
+      if (show("dob")) {
+        if (!form.dob) fe.dob = "Please add your date of birth.";
+        else if (ageFromISO(form.dob) < 13)
+          fe.dob = "You must be at least 13 years old.";
+      }
+      if (Object.keys(fe).length) {
+        setFieldErrors(fe);
+        return;
+      }
+    }
+
     setSaving(true);
     setBanner(null);
     setFieldErrors({});
@@ -220,7 +254,8 @@ export default function EditProfileScreen() {
     }
   }
 
-  const saveDisabled = !dirty || saving || avatarUploading;
+  const saveDisabled =
+    saving || avatarUploading || (!dirty && !filterFields);
 
   return (
     <AppShell nav={false}>
@@ -230,7 +265,9 @@ export default function EditProfileScreen() {
             <path d="M15 18l-6-6 6-6" />
           </svg>
         </button>
-        <h1 className="text-base font-bold text-[#1A1A1A]">Edit Profile</h1>
+        <h1 className="text-base font-bold text-[#1A1A1A]">
+          {filterFields ? "Complete your profile" : "Edit Profile"}
+        </h1>
         <button
           onClick={handleSave}
           disabled={saveDisabled}
@@ -262,6 +299,7 @@ export default function EditProfileScreen() {
           )}
 
           {/* Avatar */}
+          {show("avatar") && (
           <div className="flex flex-col items-center gap-3">
             <div className="relative h-24 w-24">
               <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full bg-[#E5E0F5]">
@@ -318,8 +356,10 @@ export default function EditProfileScreen() {
               <p className="text-xs text-red-500">{fieldErrors.avatar}</p>
             )}
           </div>
+          )}
 
           {/* Name */}
+          {show("name") && (
           <div>
             <label className="ml-1 text-xs font-medium text-[#888]">Name</label>
             <div className="mt-1 flex items-center gap-3 rounded-2xl border border-[#E5E0F5] bg-white px-4 py-4 shadow-sm">
@@ -336,8 +376,10 @@ export default function EditProfileScreen() {
               <p className="mt-1 ml-1 text-xs text-red-500">{fieldErrors.name}</p>
             )}
           </div>
+          )}
 
           {/* Bio */}
+          {show("bio") && (
           <div>
             <label className="ml-1 text-xs font-medium text-[#888]">Bio</label>
             <div className="mt-1 rounded-2xl border border-[#E5E0F5] bg-white px-4 py-4 shadow-sm">
@@ -361,8 +403,10 @@ export default function EditProfileScreen() {
               </span>
             </div>
           </div>
+          )}
 
           {/* Date of birth */}
+          {show("dob") && (
           <div>
             <label className="ml-1 text-xs font-medium text-[#888]">
               Date of birth
@@ -389,8 +433,10 @@ export default function EditProfileScreen() {
               <p className="mt-1 ml-1 text-xs text-red-500">{fieldErrors.dob}</p>
             )}
           </div>
+          )}
 
           {/* Diet */}
+          {show("diet") && (
           <div>
             <label className="ml-1 text-xs font-medium text-[#888]">Diet</label>
             <div className="mt-1 flex items-center rounded-2xl border border-[#E5E0F5] bg-white px-4 py-4 shadow-sm">
@@ -410,8 +456,10 @@ export default function EditProfileScreen() {
               <p className="mt-1 ml-1 text-xs text-red-500">{fieldErrors.diet}</p>
             )}
           </div>
+          )}
 
           {/* Food preference */}
+          {show("food_preference") && (
           <div>
             <label className="ml-1 text-xs font-medium text-[#888]">
               Food preference
@@ -432,6 +480,7 @@ export default function EditProfileScreen() {
               </p>
             )}
           </div>
+          )}
 
           <button
             onClick={handleSave}

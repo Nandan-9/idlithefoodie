@@ -2,11 +2,14 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import AppShell from "@/components/mobile/AppShell";
 import ProfileStats from "./ProfileStats";
+import ArchivesRow from "./ArchivesRow";
 
 export default function UserProfileScreen({ userId }: { userId: number }) {
+  const router = useRouter();
   const { profile, posts, loading, error, refresh } = useUserProfile(userId);
 
   return (
@@ -85,7 +88,19 @@ export default function UserProfileScreen({ userId }: { userId: number }) {
             </div>
           </div>
 
-          <ProfileStats profile={profile} />
+          <div className="mt-4">
+            <ProfileStats profile={profile} />
+          </div>
+
+          {(profile.archives?.length ?? 0) > 0 && (
+            <div className="mx-4 mt-5">
+              <ArchivesRow
+                archives={profile.archives ?? []}
+                title="Archives"
+                onOpen={(a) => router.push(`/archives/${a.id}?ro=1`)}
+              />
+            </div>
+          )}
 
           <section className="pb-6">
             <h2 className="px-4 sm:px-6 pt-5 pb-2 font-extrabold text-[#1A1A1A] text-base">

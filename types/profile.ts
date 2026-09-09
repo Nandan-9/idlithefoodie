@@ -1,3 +1,5 @@
+import type { ArchiveSummary } from "./archive";
+
 export type Diet = "" | "veg" | "non_veg";
 
 export type Profile = {
@@ -19,6 +21,8 @@ export type Profile = {
   completion_percentage: number;
   incomplete_fields: string[];
   is_profile_complete: boolean;
+  /** The user's archives (newly added server-side; may be absent on old builds). */
+  archives?: ArchiveSummary[];
 };
 
 export type ProfileUpdate = Partial<{

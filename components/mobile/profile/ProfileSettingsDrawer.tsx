@@ -57,10 +57,24 @@ export default function ProfileSettingsDrawer({
 
         <nav className="flex flex-1 flex-col gap-1 p-3">
           <Link
+            href="/profile/edit"
+            onClick={onClose}
+            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-[#1A1A1A] active:bg-[#F5F2FB]"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+            </svg>
+            Edit Profile
+          </Link>
+          <Link
             href="/saved"
             onClick={onClose}
-            className="rounded-xl px-3 py-3 text-sm font-semibold text-[#1A1A1A] active:bg-[#F5F2FB]"
+            className="flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-semibold text-[#1A1A1A] active:bg-[#F5F2FB]"
           >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z" />
+            </svg>
             Saved posts
           </Link>
         </nav>
@@ -68,8 +82,12 @@ export default function ProfileSettingsDrawer({
         <div className="border-t border-[#E5E0F5] p-3">
           <button
             onClick={logout}
-            className="w-full rounded-xl px-3 py-3 text-left text-sm font-semibold text-[#E84855] active:bg-[#FDECEE]"
+            className="flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold text-[#E84855] active:bg-[#FDECEE]"
           >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+              <path d="M16 17l5-5-5-5M21 12H9" />
+            </svg>
             Log out
           </button>
         </div>

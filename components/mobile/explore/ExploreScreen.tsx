@@ -3,7 +3,6 @@
 import { useMemo, useState } from "react";
 import { useExplorePosts } from "@/hooks/useExplorePosts";
 import { usePostActions } from "@/hooks/usePostActions";
-import { toGoogleMapsUrl } from "@/lib/geo";
 import AppShell from "@/components/mobile/AppShell";
 import PostCard from "@/components/mobile/feed/PostCard";
 import CommentsSheet from "@/components/mobile/feed/CommentsSheet";
@@ -149,15 +148,6 @@ export default function ExploreScreen() {
               onDeleteRating={() => deleteRating(openPost, refresh)}
               onEdit={() => setEditingOpenPost(true)}
               onDelete={() => setDeletingOpenPost(true)}
-              onMap={() => {
-                if (openPost.location_link) {
-                  window.open(
-                    toGoogleMapsUrl(openPost.location_link, openPost.hotel_name ?? undefined),
-                    "_blank",
-                    "noopener,noreferrer"
-                  );
-                }
-              }}
             />
           </div>
         </div>

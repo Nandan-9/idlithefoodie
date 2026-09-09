@@ -106,6 +106,7 @@ function Reel({
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [muted, setMuted] = useState(false);
+  const [descExpanded, setDescExpanded] = useState(false);
   const media = post.media[0];
 
   useEffect(() => {
@@ -227,9 +228,15 @@ function Reel({
       {/* Bottom gradient + description */}
       {post.description && (
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent p-4 pb-24 pr-16">
-          <p className="line-clamp-3 text-sm text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.6)]">
+          <button
+            type="button"
+            onClick={() => setDescExpanded((v) => !v)}
+            className={`w-full text-left text-sm text-white [text-shadow:0_1px_3px_rgb(0_0_0/0.6)] ${
+              descExpanded ? "block" : "line-clamp-1"
+            }`}
+          >
             {post.description}
-          </p>
+          </button>
         </div>
       )}
     </section>

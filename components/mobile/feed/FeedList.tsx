@@ -1,12 +1,11 @@
 "use client";
 
 import type { Post } from "@/types/feed";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import PostCard from "./PostCard";
 import CommentsSheet from "./CommentsSheet";
 import EditPostDialog from "./EditPostDialog";
 import ConfirmDialog from "@/components/mobile/profile/ConfirmDialog";
-import { toGoogleMapsUrl } from "@/lib/geo";
 import { usePostActions } from "@/hooks/usePostActions";
 
 type Props = {
@@ -15,6 +14,8 @@ type Props = {
   error: string | null;
   onRefresh: () => void;
   setPosts: (updater: (prev: Post[]) => Post[]) => void;
+  /** When set, scroll this post into view on mount (e.g. opened from a grid). */
+  initialPostId?: number;
 };
 
 export default function FeedList({
@@ -23,11 +24,21 @@ export default function FeedList({
   error,
   onRefresh,
   setPosts,
+  initialPostId,
 }: Props) {
   const [openCommentPostId, setOpenCommentPostId] = useState<number | null>(null);
   const [editingPostId, setEditingPostId] = useState<number | null>(null);
   const [deletingPostId, setDeletingPostId] = useState<number | null>(null);
   const { toggleLike, toggleSave, deleteRating, editPost, removePost } = usePostActions();
+
+  useEffect(() => {
+    if (initialPostId == null) return;
+    document
+      .getElementById(`post-${initialPostId}`)
+      ?.scrollIntoView({ block: "start" });
+    // Only run once for the id the viewer was opened with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const editingPost = editingPostId != null ? posts.find((p) => p.id === editingPostId) : undefined;
   const deletingPost = deletingPostId != null ? posts.find((p) => p.id === deletingPostId) : undefined;
@@ -82,43 +93,33 @@ export default function FeedList({
   return (
     <>
       <div className="flex-1 overflow-y-auto pb-24 lg:pb-8" style={{ WebkitOverflowScrolling: "touch" }}>
-        {/* Refresh button */}
-        <div className="flex justify-center py-3">
+        {/* Icon-only refresh affordance */}
+        <div className="sticky top-0 z-10 flex justify-end px-3 pt-2">
           <button
             onClick={onRefresh}
             disabled={loading}
-            className="text-[#6F2DBD] text-xs font-semibold flex items-center gap-1.5 rounded-full bg-[#F0EAFB] px-4 py-2 active:scale-95 transition-transform disabled:opacity-50"
+            aria-label="Refresh feed"
+            className="flex h-8 w-8 items-center justify-center rounded-full bg-[#F0EAFB] text-[#6F2DBD] shadow-sm active:scale-90 transition-transform disabled:opacity-50"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={loading ? "animate-spin" : ""}>
               <polyline points="23 4 23 10 17 10" />
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
             </svg>
-            {loading ? "Refreshing…" : "Refresh feed"}
           </button>
         </div>
 
         {posts.map((post) => (
-          <PostCard
-            key={post.id}
-            post={post}
-            onLike={() => toggleLike(post)}
-            onComment={() => setOpenCommentPostId(post.id)}
-            onSave={() => toggleSave(post)}
-            onDeleteRating={() => deleteRating(post, onRefresh)}
-            onEdit={() => setEditingPostId(post.id)}
-            onDelete={() => setDeletingPostId(post.id)}
-            onMap={() => {
-              if (post.location_link) {
-                window.open(
-                  toGoogleMapsUrl(post.location_link, post.hotel_name ?? undefined),
-                  "_blank",
-                  "noopener,noreferrer"
-                );
-              } else if (process.env.NODE_ENV !== "production") {
-                console.warn("[feed] no location url on post", post.id);
-              }
-            }}
-          />
+          <div key={post.id} id={`post-${post.id}`} className="scroll-mt-2">
+            <PostCard
+              post={post}
+              onLike={() => toggleLike(post)}
+              onComment={() => setOpenCommentPostId(post.id)}
+              onSave={() => toggleSave(post)}
+              onDeleteRating={() => deleteRating(post, onRefresh)}
+              onEdit={() => setEditingPostId(post.id)}
+              onDelete={() => setDeletingPostId(post.id)}
+            />
+          </div>
         ))}
       </div>
 

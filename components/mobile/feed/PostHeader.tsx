@@ -4,16 +4,16 @@ import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import type { Post } from "@/types/feed";
+import { formatTimeAgo } from "@/components/mobile/explore/timeAgo";
 
 type Props = {
   post: Post;
   onDeleteRating: () => void;
-  onHotel: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
 };
 
-export default function PostHeader({ post, onDeleteRating, onHotel, onEdit, onDelete }: Props) {
+export default function PostHeader({ post, onDeleteRating, onEdit, onDelete }: Props) {
   const avatarUrl = post.avatar || undefined;
   const canDeleteRating = post.is_mine && post.ratings.length > 0;
   const hasMenu = canDeleteRating || (post.is_mine && (onEdit || onDelete));
@@ -57,28 +57,22 @@ export default function PostHeader({ post, onDeleteRating, onHotel, onEdit, onDe
         <div className="min-w-0">
           <Link
             href={`/user/${post.user.id}`}
-            className="block py-0.5 text-white font-semibold text-sm leading-tight [text-shadow:0_1px_3px_rgb(0_0_0/0.6)] truncate active:opacity-80"
+            className="block leading-tight truncate text-[#1A1A1A] font-semibold text-sm active:opacity-80"
           >
             {post.user.username}
           </Link>
-          {post.hotel_name && (
-            <button
-              type="button"
-              onClick={onHotel}
-              className="block mt-1 py-0.5 text-left text-white/90 text-xs leading-tight [text-shadow:0_1px_3px_rgb(0_0_0/0.6)] truncate max-w-full active:opacity-80"
-            >
-              {post.hotel_name}
-            </button>
-          )}
+          <p className="text-[11px] leading-tight text-[#999]">
+            {formatTimeAgo(post.created_at)}
+          </p>
         </div>
       </div>
       <div className="relative" ref={menuRef}>
         <button
           onClick={() => setMenuOpen((o) => !o)}
           aria-label="Post options"
-          className="text-white/80 p-1 active:scale-90 transition-transform"
+          className="text-[#888] p-1 active:scale-90 transition-transform"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
             <circle cx="12" cy="5" r="1.5" />
             <circle cx="12" cy="12" r="1.5" />
             <circle cx="12" cy="19" r="1.5" />

@@ -7,14 +7,13 @@ import PostMedia from "./PostMedia";
 import PostMeta from "./PostMeta";
 import PostActions from "./PostActions";
 import PostRating from "./PostRating";
-import { formatTimeAgo } from "@/components/mobile/explore/timeAgo";
+import PostHotelCard from "./PostHotelCard";
 
 type Props = {
   post: Post;
   onLike: () => void;
   onComment: () => void;
   onSave: () => void;
-  onMap: () => void;
   onDeleteRating: () => void;
   onEdit?: () => void;
   onDelete?: () => void;
@@ -25,7 +24,6 @@ export default function PostCard({
   onLike,
   onComment,
   onSave,
-  onMap,
   onDeleteRating,
   onEdit,
   onDelete,
@@ -34,23 +32,17 @@ export default function PostCard({
 
   return (
     <div className="bg-white rounded-3xl shadow-sm overflow-hidden mb-4 mx-3">
-      {/* Media with overlaid header and location */}
+      <PostHeader
+        post={post}
+        onDeleteRating={onDeleteRating}
+        onEdit={onEdit}
+        onDelete={onDelete}
+      />
+
+      {/* Media with overlaid hotel card */}
       <div className="relative" style={{ aspectRatio: "4/5" }}>
         <PostMedia post={post} />
-
-        {/* Gradient overlay at top for header readability */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/30 pointer-events-none" />
-
-        {/* Header on top of media */}
-        <div className="absolute top-0 left-0 right-0">
-          <PostHeader
-            post={post}
-            onDeleteRating={onDeleteRating}
-            onHotel={onMap}
-            onEdit={onEdit}
-            onDelete={onDelete}
-          />
-        </div>
+        <PostHotelCard post={post} />
       </div>
 
       {/* Below-media content */}
@@ -60,7 +52,6 @@ export default function PostCard({
           onLike={onLike}
           onComment={onComment}
           onSave={onSave}
-          onMap={onMap}
         />
         <PostMeta
           post={post}
@@ -68,9 +59,6 @@ export default function PostCard({
           onToggle={() => setExpanded((v) => !v)}
         />
         {expanded && <PostRating post={post} />}
-        <p className="px-1 pt-1.5 text-[11px] text-[#999]">
-          {formatTimeAgo(post.created_at)}
-        </p>
       </div>
     </div>
   );

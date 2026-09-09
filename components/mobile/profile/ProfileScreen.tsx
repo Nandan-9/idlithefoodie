@@ -1,33 +1,35 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useProfile } from "@/hooks/useProfile";
+import { useMyPosts } from "@/hooks/useMyPosts";
 import AppShell from "@/components/mobile/AppShell";
 import ProfileHeader from "./ProfileHeader";
 import ProfileCompletion from "./ProfileCompletion";
+import ArchivesRow from "./ArchivesRow";
 import MyPostsGrid from "./MyPostsGrid";
 import ProfileSettingsDrawer from "./ProfileSettingsDrawer";
 
 export default function ProfileScreen() {
+  const router = useRouter();
   const { profile, loading, error, refresh } = useProfile();
+  const {
+    posts,
+    loading: postsLoading,
+    error: postsError,
+    refresh: refreshPosts,
+    setPosts,
+  } = useMyPosts();
   const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const refreshAll = () => {
+    refresh();
+    refreshPosts();
+  };
 
   return (
     <AppShell active="profile">
-      <header className="flex items-center justify-end px-4 py-2 sm:px-6">
-        <button
-          onClick={() => setSettingsOpen(true)}
-          aria-label="Settings"
-          className="p-1 text-[#1A1A1A] active:scale-90 transition-transform"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
-            <circle cx="5" cy="12" r="2" />
-            <circle cx="12" cy="12" r="2" />
-            <circle cx="19" cy="12" r="2" />
-          </svg>
-        </button>
-      </header>
-
       {loading && !profile && (
         <div className="flex flex-1 items-center justify-center">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-[#6F2DBD] border-t-transparent" />
@@ -48,15 +50,45 @@ export default function ProfileScreen() {
 
       {profile && (
         <div className="flex-1">
-          <ProfileHeader profile={profile} />
+          <ProfileHeader
+            profile={profile}
+            onOpenSettings={() => setSettingsOpen(true)}
+            onRefresh={refreshAll}
+            refreshing={loading || postsLoading}
+          />
+
           {!profile.is_profile_complete && (
-            <ProfileCompletion
-              percentage={profile.completion_percentage}
-              incompleteFields={profile.incomplete_fields}
-            />
+            <div className="mx-4 mt-5">
+              <ProfileCompletion
+                percentage={profile.completion_percentage}
+                incompleteFields={profile.incomplete_fields}
+              />
+            </div>
           )}
 
-          <MyPostsGrid />
+          <div className="mx-4 mt-5">
+            <ArchivesRow
+              archives={profile.archives ?? []}
+              onNew={() => router.push("/archives/new")}
+              onOpen={(a) =>
+                router.push(
+                  `/archives/${a.id}?name=${encodeURIComponent(
+                    a.name
+                  )}&emoji=${encodeURIComponent(a.emoji)}`
+                )
+              }
+            />
+          </div>
+
+          <div className="mt-3">
+            <MyPostsGrid
+              posts={posts}
+              loading={postsLoading}
+              error={postsError}
+              refresh={refreshPosts}
+              setPosts={setPosts}
+            />
+          </div>
         </div>
       )}
 

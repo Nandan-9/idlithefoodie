@@ -20,6 +20,11 @@ import type {
   HotelReview,
   HotelReviewsData,
 } from "@/types/hotel";
+import type {
+  ArchiveSummary,
+  ArchiveDetail,
+  ArchiveInstantPick,
+} from "@/types/archive";
 
 /**
  * Thrown when a request could not be authenticated even after refreshing.
@@ -536,4 +541,91 @@ export async function fetchMyPosts(): Promise<Post[]> {
 export async function fetchUserRegularPosts(userId: number): Promise<Post[]> {
   const res = await apiFetch(`/accounts/posts/${userId}/`);
   return unwrapEnvelope<Post[]>(res, "Failed to load posts");
+}
+
+// ── Archives ────────────────────────────────────────────────────────────────
+// Collections of the user's own archived instant posts. All enveloped.
+
+/** The current user's archives (summary shape). */
+export async function fetchArchives(): Promise<ArchiveSummary[]> {
+  const res = await apiFetch(`/accounts/archives/`);
+  return unwrapEnvelope<ArchiveSummary[]>(res, "Failed to load archives");
+}
+
+/** Another user's archives (summary shape), by user id. */
+export async function fetchUserArchives(
+  userId: number
+): Promise<ArchiveSummary[]> {
+  const res = await apiFetch(`/accounts/archives/user/${userId}/`);
+  return unwrapEnvelope<ArchiveSummary[]>(res, "Failed to load archives");
+}
+
+/** The current user's archived instants — the pick-list for building an archive. */
+export async function fetchArchivedInstants(): Promise<ArchiveInstantPick[]> {
+  const res = await apiFetch(`/accounts/archives/instants/`);
+  return unwrapEnvelope<ArchiveInstantPick[]>(
+    res,
+    "Failed to load your archived instants"
+  );
+}
+
+/** One archive with its items. Any authenticated user can read any archive. */
+export async function fetchArchiveDetail(id: number): Promise<ArchiveDetail> {
+  const res = await apiFetch(`/accounts/archives/${id}/`);
+  return unwrapEnvelope<ArchiveDetail>(res, "Archive not found");
+}
+
+/** Create an archive from ≥1 archived instant posts. */
+export async function createArchive(payload: {
+  name: string;
+  emoji: string;
+  post_ids: number[];
+}): Promise<ArchiveDetail> {
+  const res = await apiFetch(`/accounts/archives/`, {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+  return unwrapEnvelope<ArchiveDetail>(res, "Could not create the archive");
+}
+
+/** Update an archive's name / emoji. Items are not touched here. */
+export async function updateArchive(
+  id: number,
+  payload: { name?: string; emoji?: string }
+): Promise<ArchiveDetail> {
+  const res = await apiFetch(`/accounts/archives/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+  return unwrapEnvelope<ArchiveDetail>(res, "Could not update the archive");
+}
+
+/** Delete an archive. The underlying instants are kept. */
+export async function deleteArchive(id: number): Promise<void> {
+  const res = await apiFetch(`/accounts/archives/${id}/`, { method: "DELETE" });
+  if (!res.ok) throw new Error("Could not delete the archive");
+}
+
+/** Add archived instant posts to an archive. */
+export async function addArchiveItems(
+  id: number,
+  post_ids: number[]
+): Promise<ArchiveDetail> {
+  const res = await apiFetch(`/accounts/archives/${id}/items/`, {
+    method: "POST",
+    body: JSON.stringify({ post_ids }),
+  });
+  return unwrapEnvelope<ArchiveDetail>(res, "Could not add to the archive");
+}
+
+/** Remove posts from an archive. */
+export async function removeArchiveItems(
+  id: number,
+  post_ids: number[]
+): Promise<ArchiveDetail> {
+  const res = await apiFetch(`/accounts/archives/${id}/items/`, {
+    method: "DELETE",
+    body: JSON.stringify({ post_ids }),
+  });
+  return unwrapEnvelope<ArchiveDetail>(res, "Could not update the archive");
 }

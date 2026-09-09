@@ -26,5 +26,5 @@ export function useMyPosts() {
     load();
   }, [load]);
 
-  return { posts, loading, error, refresh: load };
+  return { posts, loading, error, refresh: load, setPosts };
 }
