@@ -29,7 +29,10 @@ export default function WaitlistForm() {
 
   if (status === "done") {
     return (
-      <p className="mt-8 max-w-md text-center text-base text-[#fedc19]">
+      <p
+        aria-live="polite"
+        className="mt-6 max-w-md text-base font-semibold text-[#4B3DF2]"
+      >
         Thanks! You&rsquo;re on the list — we&rsquo;ll email you the moment we launch.
       </p>
     );
@@ -38,7 +41,7 @@ export default function WaitlistForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="mt-8 flex w-full max-w-sm flex-col gap-3"
+      className="mt-6 flex w-full max-w-sm flex-col gap-3"
     >
       <input
         type="text"
@@ -46,7 +49,7 @@ export default function WaitlistForm() {
         placeholder="Your name"
         value={name}
         onChange={(e) => setName(e.target.value)}
-        className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white placeholder-gray-500 outline-none focus:border-[#8b5cf6]"
+        className="rounded-xl border border-black/15 bg-white px-4 py-3 text-sm text-[#1A1A1A] placeholder-neutral-400 outline-none focus:border-[#4B3DF2] focus:ring-2 focus:ring-[#4B3DF2]/30"
       />
       <input
         type="email"
@@ -54,18 +57,20 @@ export default function WaitlistForm() {
         placeholder="you@example.com"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
-        className="rounded-xl border border-white/15 bg-white/5 px-4 py-3 text-sm text-white placeholder-gray-500 outline-none focus:border-[#8b5cf6]"
+        className="rounded-xl border border-black/15 bg-white px-4 py-3 text-sm text-[#1A1A1A] placeholder-neutral-400 outline-none focus:border-[#4B3DF2] focus:ring-2 focus:ring-[#4B3DF2]/30"
       />
       <button
         type="submit"
         disabled={status === "submitting"}
-        className="group flex items-center justify-center gap-2 rounded-xl bg-[#6D28D9] px-6 py-3 text-sm font-bold text-white transition-all duration-300 hover:bg-[#5B21B6] disabled:opacity-60"
+        className="group flex items-center justify-center gap-2 rounded-xl bg-[#4B3DF2] px-6 py-3 text-sm font-bold text-white transition-all duration-300 hover:bg-[#3d31d0] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#4B3DF2] disabled:opacity-60"
       >
         {status === "submitting" ? "Joining…" : "Join the waitlist"}
         <ArrowRight className="h-4 w-4 transition-transform duration-300 group-hover:translate-x-1" />
       </button>
       {status === "error" && (
-        <p className="text-sm text-red-400">{error}</p>
+        <p aria-live="polite" className="text-sm text-red-500">
+          {error}
+        </p>
       )}
     </form>
   );
