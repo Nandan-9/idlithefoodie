@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from "framer-motion";
 import { ArrowRight } from "lucide-react";
 import Container from "@/components/layout/Container";
 import { useWaitlist } from "./WaitlistModal";
+import WaitlistCounter from "./WaitlistCounter";
 
 export default function HeroSection() {
   const reduce = useReducedMotion();
@@ -35,7 +36,7 @@ export default function HeroSection() {
       <div className="pointer-events-none absolute -left-40 -top-32 h-[460px] w-[460px] rounded-full bg-[#F5B942] opacity-20 blur-[130px]" />
       <div className="pointer-events-none absolute -right-40 top-40 h-[460px] w-[460px] rounded-full bg-[#4B3DF2] opacity-10 blur-[130px]" />
 
-      <Container className="relative grid items-center gap-10 md:grid-cols-2">
+      <Container className="relative grid items-center gap-10 md:grid-cols-2 lg:gap-16">
         <div>
           <span className="inline-flex items-center gap-2 rounded-full border border-[#4B3DF2]/20 bg-[#4B3DF2]/10 px-3 py-1 text-xs font-bold uppercase tracking-wide text-[#4B3DF2]">
             Launching soon in Kerala
@@ -67,15 +68,19 @@ export default function HeroSection() {
               See why we&rsquo;re different
             </a>
           </div>
+
+          <div className="mt-8">
+            <WaitlistCounter />
+          </div>
         </div>
 
         {/* mascot flanked by the floating discover / share illustrations */}
-        <div className="relative mx-auto flex min-h-[320px] w-full max-w-[420px] items-center justify-center sm:min-h-[440px]">
-          <div className="absolute h-56 w-56 rounded-full bg-[#F5B942] opacity-30 blur-3xl sm:h-72 sm:w-72" />
+        <div className="relative mx-auto flex min-h-[420px] w-full max-w-[560px] items-center justify-center sm:min-h-[600px] lg:max-w-[680px]">
+          <div className="absolute h-72 w-72 rounded-full bg-[#F5B942] opacity-30 blur-3xl sm:h-96 sm:w-96" />
 
           <motion.div
             {...float({ y: [0, -15, 0], rotate: [-9, -4, -9], duration: 5.3 })}
-            className="absolute -left-3 -top-4 z-20 w-[118px] -rotate-6 sm:-left-14 sm:top-0 sm:w-[176px]"
+            className="absolute -left-2 -top-2 z-20 w-[150px] -rotate-6 sm:-left-16 sm:top-2 sm:w-[240px]"
           >
             <Image
               src="/assets/discover_new.png"
@@ -97,13 +102,13 @@ export default function HeroSection() {
               width={320}
               height={320}
               priority
-              className="h-auto w-[190px] drop-shadow-2xl sm:w-[250px]"
+              className="h-auto w-[250px] drop-shadow-2xl sm:w-[360px]"
             />
           </motion.div>
 
           <motion.div
             {...float({ y: [0, 12, 0], rotate: [8, 13, 8], duration: 6.2 })}
-            className="absolute -bottom-6 right-1 z-20 w-[140px] rotate-[10deg] sm:-right-10 sm:bottom-4 sm:w-[196px]"
+            className="absolute -bottom-4 right-0 z-20 w-[170px] rotate-[10deg] sm:-right-12 sm:bottom-6 sm:w-[260px]"
           >
             <Image
               src="/assets/share.png"
