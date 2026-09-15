@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import { instantEnabled } from "@/lib/config";
 
-type Tab = "home" | "instant" | "explore" | "create" | "saved" | "profile";
+type Tab = "home" | "explore" | "instant" | "create" | "hotels" | "saved" | "profile";
 
 type Props = { active?: Tab };
 
@@ -18,7 +19,10 @@ export default function AppNav({ active = "home" }: Props) {
       </div>
 
       <NavBtn href="/feed" icon={<HomeIcon />} label="Home" active={active === "home"} />
-      <NavBtn href="/instant" icon={<InstantIcon />} label="Instant" active={active === "instant"} />
+      <NavBtn href="/explore" icon={<ExploreIcon />} label="Explore" active={active === "explore"} />
+      {instantEnabled && (
+        <NavBtn href="/instant" icon={<InstantIcon />} label="Instant" active={active === "instant"} />
+      )}
 
       {/* Create button */}
       <Link
@@ -35,7 +39,7 @@ export default function AppNav({ active = "home" }: Props) {
         <span className="hidden text-sm font-bold lg:inline">Create</span>
       </Link>
 
-      <NavBtn href="/explore" icon={<ExploreIcon />} label="Explore" active={active === "explore"} />
+      <NavBtn href="/hotels" icon={<RestaurantIcon />} label="Hotels" active={active === "hotels"} />
       <NavBtn href="/profile" icon={<ProfileIcon />} label="Profile" active={active === "profile"} />
     </nav>
   );
@@ -91,6 +95,17 @@ function ExploreIcon() {
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="11" cy="11" r="8" />
       <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
+function RestaurantIcon() {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9l1.5-5h15L21 9" />
+      <path d="M4 9v10a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1V9" />
+      <path d="M3 9a2.5 2.5 0 0 0 5 0 2.5 2.5 0 0 0 4 0 2.5 2.5 0 0 0 4 0 2.5 2.5 0 0 0 5 0" />
+      <path d="M9 20v-5h6v5" />
     </svg>
   );
 }

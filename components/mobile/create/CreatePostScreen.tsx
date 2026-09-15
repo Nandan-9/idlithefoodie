@@ -8,6 +8,7 @@ import {
   createPost,
   PostValidationError,
 } from "@/lib/api";
+import { instantEnabled } from "@/lib/config";
 import type { Hotel, RatingCategory } from "@/types/feed";
 import { RATING_CATEGORIES } from "@/types/feed";
 import AppShell from "@/components/mobile/AppShell";
@@ -52,7 +53,7 @@ export default function CreatePostScreen() {
   const [banner, setBanner] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const [showDiscard, setShowDiscard] = useState(false);
-  const [step, setStep] = useState<0 | 1 | 2 | 3>(0);
+  const [step, setStep] = useState<0 | 1 | 2 | 3>(instantEnabled ? 0 : 1);
 
   const submitting = phase !== "idle";
   const canNext1 = items.length > 0;
@@ -201,7 +202,7 @@ export default function CreatePostScreen() {
     }
   }
 
-  if (step === 0) {
+  if (step === 0 && instantEnabled) {
     return (
       <CameraCaptureScreen
         hotel={hotel}

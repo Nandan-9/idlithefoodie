@@ -31,3 +31,6 @@ export function assertApiConfigured(): void {
     );
   }
 }
+
+/** Whether the Instant feature (nav tab, post-create mode, profile archives) is enabled. */
+export const instantEnabled = process.env.NEXT_PUBLIC_INSTANT_ENABLED === "true";

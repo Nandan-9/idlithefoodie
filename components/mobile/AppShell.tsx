@@ -3,7 +3,7 @@
 import type { ReactNode } from "react";
 import AppNav from "./AppNav";
 
-type Tab = "home" | "instant" | "explore" | "create" | "saved" | "profile";
+type Tab = "home" | "explore" | "instant" | "create" | "hotels" | "saved" | "profile";
 
 type Props = {
   children: ReactNode;

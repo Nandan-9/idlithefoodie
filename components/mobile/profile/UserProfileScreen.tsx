@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUserProfile } from "@/hooks/useUserProfile";
+import { instantEnabled } from "@/lib/config";
 import AppShell from "@/components/mobile/AppShell";
 import ProfileStats from "./ProfileStats";
 import ArchivesRow from "./ArchivesRow";
@@ -92,7 +93,7 @@ export default function UserProfileScreen({ userId }: { userId: number }) {
             <ProfileStats profile={profile} />
           </div>
 
-          {(profile.archives?.length ?? 0) > 0 && (
+          {instantEnabled && (profile.archives?.length ?? 0) > 0 && (
             <div className="mx-4 mt-5">
               <ArchivesRow
                 archives={profile.archives ?? []}

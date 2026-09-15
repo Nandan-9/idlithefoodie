@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useProfile } from "@/hooks/useProfile";
 import { useMyPosts } from "@/hooks/useMyPosts";
+import { instantEnabled } from "@/lib/config";
 import AppShell from "@/components/mobile/AppShell";
 import ProfileHeader from "./ProfileHeader";
 import ProfileCompletion from "./ProfileCompletion";
@@ -66,19 +67,21 @@ export default function ProfileScreen() {
             </div>
           )}
 
-          <div className="mx-4 mt-5">
-            <ArchivesRow
-              archives={profile.archives ?? []}
-              onNew={() => router.push("/archives/new")}
-              onOpen={(a) =>
-                router.push(
-                  `/archives/${a.id}?name=${encodeURIComponent(
-                    a.name
-                  )}&emoji=${encodeURIComponent(a.emoji)}`
-                )
-              }
-            />
-          </div>
+          {instantEnabled && (
+            <div className="mx-4 mt-5">
+              <ArchivesRow
+                archives={profile.archives ?? []}
+                onNew={() => router.push("/archives/new")}
+                onOpen={(a) =>
+                  router.push(
+                    `/archives/${a.id}?name=${encodeURIComponent(
+                      a.name
+                    )}&emoji=${encodeURIComponent(a.emoji)}`
+                  )
+                }
+              />
+            </div>
+          )}
 
           <div className="mt-3">
             <MyPostsGrid
