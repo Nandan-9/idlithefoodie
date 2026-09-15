@@ -1,29 +1,15 @@
-"use client";
-
-import { useEffect, useState } from "react";
 import { Sparkle, Users } from "lucide-react";
 
-const START_COUNT = 118;
-const INCREMENT = 2;
-const INTERVAL_MS = 20 * 60 * 1000;
+const COUNT = 118;
 
 export default function WaitlistCounter() {
-  const [count, setCount] = useState(START_COUNT);
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setCount((c) => c + INCREMENT);
-    }, INTERVAL_MS);
-    return () => clearInterval(id);
-  }, []);
-
-  const digits = String(count).padStart(5, "0").split("");
+  const digits = String(COUNT).padStart(5, "0").split("");
 
   return (
     <div className="mx-auto w-full max-w-md rounded-3xl bg-white/70 p-6 text-center shadow-lg shadow-black/5 backdrop-blur-sm">
       <p className="flex items-center justify-center gap-2 text-base font-semibold text-[#1A1A1A]">
         <Users className="h-5 w-5 text-[#4B3DF2]" />
-        Join <span className="text-[#4B3DF2]">{count.toLocaleString()}</span> food
+        Join <span className="text-[#4B3DF2]">{COUNT.toLocaleString()}</span> food
         lovers on the waitlist
       </p>
 
