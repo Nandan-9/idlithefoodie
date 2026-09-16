@@ -1,6 +1,6 @@
 import { Sparkle, Users } from "lucide-react";
 
-const COUNT = 143;
+const COUNT = 167;
 
 export default function WaitlistCounter() {
   const digits = String(COUNT).padStart(5, "0").split("");
