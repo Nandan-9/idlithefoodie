@@ -6,9 +6,27 @@ import { joinWaitlist } from "@/lib/api";
 
 type Status = "idle" | "submitting" | "done" | "error";
 
+const LOCATIONS = [
+  "Thiruvananthapuram",
+  "Kollam",
+  "Pathanamthitta",
+  "Alappuzha",
+  "Kottayam",
+  "Idukki",
+  "Ernakulam",
+  "Thrissur",
+  "Palakkad",
+  "Malappuram",
+  "Kozhikode",
+  "Wayanad",
+  "Kannur",
+  "Kasaragod",
+];
+
 export default function WaitlistForm() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
+  const [location, setLocation] = useState("");
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState("");
 
@@ -17,7 +35,7 @@ export default function WaitlistForm() {
     setStatus("submitting");
     setError("");
     try {
-      await joinWaitlist(name.trim(), email.trim());
+      await joinWaitlist(name.trim(), email.trim(), location);
       setStatus("done");
     } catch (err) {
       setStatus("error");
@@ -59,6 +77,23 @@ export default function WaitlistForm() {
         onChange={(e) => setEmail(e.target.value)}
         className="rounded-xl border border-black/15 bg-white px-4 py-3 text-sm text-[#1A1A1A] placeholder-neutral-400 outline-none focus:border-[#4B3DF2] focus:ring-2 focus:ring-[#4B3DF2]/30"
       />
+      <select
+        required
+        value={location}
+        onChange={(e) => setLocation(e.target.value)}
+        className={`rounded-xl border border-black/15 bg-white px-4 py-3 text-sm outline-none focus:border-[#4B3DF2] focus:ring-2 focus:ring-[#4B3DF2]/30 ${
+          location ? "text-[#1A1A1A]" : "text-neutral-400"
+        }`}
+      >
+        <option value="" disabled>
+          Select your district
+        </option>
+        {LOCATIONS.map((l) => (
+          <option key={l} value={l} className="text-[#1A1A1A]">
+            {l}
+          </option>
+        ))}
+      </select>
       <button
         type="submit"
         disabled={status === "submitting"}

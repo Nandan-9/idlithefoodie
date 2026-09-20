@@ -140,10 +140,14 @@ export async function logoutRequest(): Promise<void> {
  * Public landing-page waitlist signup. No auth. The backend treats a repeat
  * email as success, so this resolves for both "added" and "already on the list".
  */
-export async function joinWaitlist(name: string, email: string): Promise<void> {
+export async function joinWaitlist(
+  name: string,
+  email: string,
+  location: string
+): Promise<void> {
   const res = await apiFetch(`/waitlist/`, {
     method: "POST",
-    body: JSON.stringify({ name, email }),
+    body: JSON.stringify({ name, email, location }),
   });
   await unwrapEnvelope<unknown>(res, "Could not join the waitlist");
 }
