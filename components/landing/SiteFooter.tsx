@@ -17,7 +17,7 @@ export default function SiteFooter() {
             className="h-auto w-[64px] object-contain"
           />
           <p className="text-sm font-medium text-[#1A1A1A]/60">
-            Real people. Real reviews. Real good food.
+            By foodies, for foodies.
           </p>
         </div>
         <nav className="flex flex-wrap gap-x-6 gap-y-3 text-sm font-semibold text-[#1A1A1A]/70">
