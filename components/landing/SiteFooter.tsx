@@ -30,6 +30,9 @@ export default function SiteFooter() {
           <Link href="/privacy" className="hover:text-[#4B3DF2]">
             Privacy Policy
           </Link>
+          <Link href="/delete-account" className="hover:text-[#4B3DF2]">
+            Delete account
+          </Link>
           <a
             href="https://www.instagram.com/idli.food"
             target="_blank"
