@@ -4,9 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useHotels } from "@/hooks/useHotels";
-import { fetchTags, fetchTagHotels } from "@/lib/api";
+import { fetchHotels, fetchTags, fetchTagHotels } from "@/lib/api";
 import type { Hotel, Tag } from "@/types/feed";
+import { useRouter, useSearchParams } from "next/navigation";
+import { slugify } from "@/lib/slug";
 import AppShell from "@/components/mobile/AppShell";
+import HotelProfileDrawer from "@/components/mobile/explore/HotelProfileDrawer";
 import StorefrontIcon from "@/components/mobile/explore/StorefrontIcon";
 
 const HotelsMap = dynamic(() => import("./HotelsMap"), {
@@ -54,12 +57,42 @@ export default function HotelsListScreen() {
   const [activeTag, setActiveTag] = useState<number | null>(null);
   const activeTagRef = useRef<number | null>(null);
   const [tagHotels, setTagHotels] = useState<Hotel[]>([]);
+  const [searchText, setSearchText] = useState("");
+  const [searchResults, setSearchResults] = useState<Hotel[] | null>(null);
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const place = searchParams.get("place");
+  // Set when this session pushed ?place=, so closing can pop it off history.
+  const pushedPlace = useRef(false);
 
   useEffect(() => {
     fetchTags().then(setTags).catch(() => {});
   }, []);
 
+  async function runSearch(e: React.FormEvent) {
+    e.preventDefault();
+    const q = searchText.trim();
+    if (!q) {
+      setSearchResults(null);
+      return;
+    }
+    setActiveTag(null);
+    activeTagRef.current = null;
+    try {
+      setSearchResults(await fetchHotels(q));
+    } catch {
+      setSearchResults([]);
+    }
+  }
+
+  function clearSearch() {
+    setSearchText("");
+    setSearchResults(null);
+  }
+
   async function pickTag(id: number) {
+    setSearchText("");
+    setSearchResults(null);
     if (activeTag === id) {
       setActiveTag(null);
       activeTagRef.current = null;
@@ -77,7 +110,26 @@ export default function HotelsListScreen() {
     }
   }
 
-  const mapHotels = activeTag === null ? hotels : tagHotels;
+  const selectedHotel = place
+    ? hotels.find((h) => slugify(h.name) === place) ?? null
+    : null;
+
+  function openHotel(hotel: Hotel) {
+    pushedPlace.current = true;
+    router.push(`/hotels?place=${slugify(hotel.name)}`, { scroll: false });
+  }
+
+  function closeHotel() {
+    if (pushedPlace.current) {
+      pushedPlace.current = false;
+      router.back();
+    } else {
+      router.replace("/hotels", { scroll: false });
+    }
+  }
+
+  const mapHotels =
+    searchResults ?? (activeTag === null ? hotels : tagHotels);
 
   const viewToggle = (
     <Segmented
@@ -105,15 +157,40 @@ export default function HotelsListScreen() {
       {view === "map" ? (
         <>
           <div className="absolute inset-x-0 bottom-16 top-0 lg:bottom-0">
-            <HotelsMap hotels={mapHotels} is3D={mode === "3d"} />
+            <HotelsMap
+              hotels={mapHotels}
+              is3D={mode === "3d"}
+              onSelectHotel={openHotel}
+            />
           </div>
           <div className="absolute left-3 top-3 z-10 flex items-center gap-2 rounded-full bg-[#6F2DBD] p-1.5 pr-2 text-white shadow-lg">
             <span className="pl-2 text-sm font-extrabold">Hotels 🍴</span>
             {viewToggle}
             {modeToggle}
           </div>
+          <form
+            onSubmit={runSearch}
+            className="absolute inset-x-3 top-16 z-10 flex items-center gap-2 rounded-full bg-white px-4 py-2 shadow-lg"
+          >
+            <input
+              type="text"
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              placeholder="Search hotel or place"
+              className="min-w-0 flex-1 bg-transparent text-sm outline-none"
+            />
+            {searchResults !== null && (
+              <button
+                type="button"
+                onClick={clearSearch}
+                className="text-sm font-semibold text-[#6F2DBD]"
+              >
+                Clear
+              </button>
+            )}
+          </form>
           {tags.length > 0 && (
-            <div className="absolute inset-x-3 top-16 z-10 flex gap-2 overflow-x-auto pb-1">
+            <div className="absolute inset-x-3 top-28 z-10 flex gap-2 overflow-x-auto pb-1">
               {tags.map((t) => (
                 <button
                   key={t.id}
@@ -191,6 +268,14 @@ export default function HotelsListScreen() {
             </Link>
           ))}
         </div>
+      )}
+
+      {selectedHotel && (
+        <HotelProfileDrawer
+          key={selectedHotel.id}
+          hotelId={selectedHotel.id}
+          onClose={closeHotel}
+        />
       )}
     </AppShell>
   );

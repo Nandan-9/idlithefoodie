@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import StorefrontIcon from "./StorefrontIcon";
 
-export default function HotelCover() {
+export default function HotelCover({ onClose }: { onClose?: () => void }) {
   const router = useRouter();
 
   return (
@@ -13,8 +13,8 @@ export default function HotelCover() {
       </div>
 
       <button
-        onClick={() => router.back()}
-        aria-label="Back"
+        onClick={() => (onClose ? onClose() : router.back())}
+        aria-label={onClose ? "Close" : "Back"}
         className="absolute left-4 top-4 flex h-11 w-11 items-center justify-center rounded-full bg-white shadow-md transition-transform active:scale-90"
       >
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

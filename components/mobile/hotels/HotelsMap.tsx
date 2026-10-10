@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { hotelMapsUrl } from "@/lib/geo";
 import type { Hotel } from "@/types/feed";
 
 // Turbopack can't bundle MapLibre's inline worker, so serve it from /public
@@ -15,10 +14,13 @@ const STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
 const BUILDINGS_LAYER = "hotels-3d-buildings";
 // Trivandrum fallback when no hotel has coordinates.
 const DEFAULT_CENTER: [number, number] = [76.9366, 8.5241];
+// Hotel names under the pins only show from this zoom (street level) upward.
+const LABEL_MIN_ZOOM = 14;
 
 type Props = {
   hotels: Hotel[];
   is3D: boolean;
+  onSelectHotel: (hotel: Hotel) => void;
 };
 
 type Pin = { hotel: Hotel; lngLat: [number, number] };
@@ -51,15 +53,23 @@ function createPinElement(name: string): HTMLButtonElement {
     <circle cx="20" cy="19" r="6.5" fill="#fff"/>
   </svg>`;
   btn.style.cssText =
-    "background:none;border:0;padding:0;cursor:pointer;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));";
+    "position:relative;background:none;border:0;padding:0;cursor:pointer;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));";
+  const label = document.createElement("span");
+  label.textContent = name;
+  label.style.cssText =
+    "display:none;position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:2px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;font:700 11px/1.2 system-ui,sans-serif;color:#2A1240;filter:none;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;";
+  btn.appendChild(label);
   return btn;
 }
 
-export default function HotelsMap({ hotels, is3D }: Props) {
+export default function HotelsMap({ hotels, is3D, onSelectHotel }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
+  const labelsRef = useRef<HTMLElement[]>([]);
+  const labelsOnRef = useRef(false);
   const is3DRef = useRef(is3D);
+  const onSelectRef = useRef(onSelectHotel);
   // Hotels known at mount, so the first camera position is already correct.
   const initialHotels = useRef(hotels);
   const [ready, setReady] = useState(false);
@@ -67,7 +77,8 @@ export default function HotelsMap({ hotels, is3D }: Props) {
 
   useEffect(() => {
     is3DRef.current = is3D;
-  }, [is3D]);
+    onSelectRef.current = onSelectHotel;
+  }, [is3D, onSelectHotel]);
 
   // Create the map once.
   useEffect(() => {
@@ -109,6 +120,18 @@ export default function HotelsMap({ hotels, is3D }: Props) {
       new maplibregl.NavigationControl({ visualizePitch: true }),
       "top-right"
     );
+    // Keep the zoom/compass buttons clear of the search bar and tag chips.
+    const topRight = el.querySelector<HTMLElement>(".maplibregl-ctrl-top-right");
+    if (topRight) topRight.style.marginTop = "104px";
+
+    const syncLabels = () => {
+      const on = map.getZoom() >= LABEL_MIN_ZOOM;
+      labelsOnRef.current = on;
+      labelsRef.current.forEach((l) => {
+        l.style.display = on ? "block" : "none";
+      });
+    };
+    map.on("zoom", syncLabels);
 
     map.on("load", () => {
       map.addLayer({
@@ -141,6 +164,7 @@ export default function HotelsMap({ hotels, is3D }: Props) {
     return () => {
       markersRef.current.forEach((m) => m.remove());
       markersRef.current = [];
+      labelsRef.current = [];
       map.remove();
       mapRef.current = null;
       setReady(false);
@@ -172,20 +196,22 @@ export default function HotelsMap({ hotels, is3D }: Props) {
 
     markersRef.current.forEach((m) => m.remove());
     markersRef.current = [];
+    labelsRef.current = [];
+    labelsOnRef.current = map.getZoom() >= LABEL_MIN_ZOOM;
 
     const pins = toPins(hotels);
     for (const { hotel, lngLat } of pins) {
       const el = createPinElement(hotel.name);
-      // The Google Maps URL opens the Maps app on phones that have it and a
-      // browser tab elsewhere (see CLAUDE.md: window.open, never router).
-      el.addEventListener("click", () => {
-        const url = hotelMapsUrl(hotel.location, hotel.name);
-        if (url) window.open(url, "_blank");
-      });
+      el.addEventListener("click", () => onSelectRef.current(hotel));
+      const label = el.lastElementChild as HTMLElement;
+      label.style.display = labelsOnRef.current ? "block" : "none";
+      labelsRef.current.push(label);
 
       const popup = new maplibregl.Popup({ offset: 30, closeButton: false })
         .setText(hotel.name);
-      el.addEventListener("mouseenter", () => popup.setLngLat(lngLat).addTo(map));
+      el.addEventListener("mouseenter", () => {
+        if (!labelsOnRef.current) popup.setLngLat(lngLat).addTo(map);
+      });
       el.addEventListener("mouseleave", () => popup.remove());
 
       markersRef.current.push(
