@@ -3,6 +3,7 @@ import type {
   Post,
   Comment,
   Hotel,
+  Tag,
   UploadUrl,
   PostCreate,
   PostUpdate,
@@ -125,6 +126,132 @@ export async function fetchMe(): Promise<{
   const data = body?.data ?? body;
   if (!data?.id) throw new SessionExpiredError();
   return data;
+}
+
+/** Thrown by the OTP send/verify calls below. `status` lets callers branch
+ * on 429 (cooldown/throttle), 401 (wrong code) or 410 (expired code). */
+export class OtpError extends Error {
+  status: number;
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "OtpError";
+    this.status = status;
+  }
+}
+
+/**
+ * Sends an OTP to verify `phone` as part of Google-signup profile completion.
+ * Not routed through `apiFetch`: the request is unauthenticated, and a 401
+ * response here means "wrong code" (on verify), not "session expired".
+ */
+export async function sendUserSignupOtp(phone: string): Promise<void> {
+  const res = await fetch(`${BASE}/otp/send/`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, purpose: "user_signup" }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new OtpError(body?.message ?? "Could not send OTP", res.status);
+  }
+}
+
+/** Verifies the code from `sendUserSignupOtp` and returns a verification_token
+ * to pass to `/auth/google/complete/`. */
+export async function verifyUserSignupOtp(
+  phone: string,
+  code: string
+): Promise<string> {
+  const res = await fetch(`${BASE}/otp/verify/`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, purpose: "user_signup", code }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new OtpError(body?.message ?? "Invalid code", res.status);
+  }
+  return body?.data?.verification_token as string;
+}
+
+/** Sends a login/signup OTP to `phone` (E.164, e.g. +919876543210). */
+export async function sendUserAuthOtp(phone: string): Promise<void> {
+  const res = await fetch(`${BASE}/otp/send/`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, purpose: "user_auth" }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new OtpError(body?.message ?? "Could not send OTP", res.status);
+  }
+}
+
+/**
+ * Verifies the code from `sendUserAuthOtp`. For an existing user the backend
+ * sets the auth cookies and `isNewUser` is false; for a new user it returns a
+ * `verificationToken` to pass to `signupRequest`.
+ */
+export async function verifyUserAuthOtp(
+  phone: string,
+  code: string
+): Promise<{ isNewUser: boolean; verificationToken?: string }> {
+  const res = await fetch(`${BASE}/otp/verify/`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, purpose: "user_auth", code }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new OtpError(body?.message ?? "Invalid code", res.status);
+  }
+  return {
+    isNewUser: body?.data?.is_new_user === true,
+    verificationToken: body?.data?.verification_token,
+  };
+}
+
+/** Creates the account after OTP verification; the backend sets the auth cookies. */
+export async function signupRequest(
+  username: string,
+  phone: string,
+  password: string,
+  verificationToken: string
+): Promise<void> {
+  const res = await fetch(`${BASE}/auth/signup/`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      username,
+      phone,
+      password,
+      verification_token: verificationToken,
+    }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) throw new Error(body?.message ?? "Signup failed");
+}
+
+/** Logs in with a username or phone number; the backend sets the auth cookies. */
+export async function loginRequest(
+  identifier: string,
+  password: string
+): Promise<void> {
+  const res = await fetch(`${BASE}/auth/login/`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ identifier, password }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new OtpError(body?.message ?? "Login failed", res.status);
+  }
 }
 
 /** Clear the auth cookies server-side. Best-effort — never throws. */
@@ -351,9 +478,22 @@ async function unwrapEnvelope<T>(res: Response, fallback: string): Promise<T> {
 }
 
 /** All hotels (flat array, no pagination). */
-export async function fetchHotels(): Promise<Hotel[]> {
-  const res = await apiFetch(`/hotel/list/?platform=web`);
+export async function fetchHotels(query?: string): Promise<Hotel[]> {
+  const q = query ? `&q=${encodeURIComponent(query)}` : "";
+  const res = await apiFetch(`/hotel/list/?platform=web${q}`);
   return unwrapEnvelope<Hotel[]>(res, "Failed to load hotels");
+}
+
+/** All admin-created tags (flat array, no pagination). */
+export async function fetchTags(): Promise<Tag[]> {
+  const res = await apiFetch(`/post/tags/`);
+  return unwrapEnvelope<Tag[]>(res, "Failed to load tags");
+}
+
+/** Hotels with at least one published post carrying the tag. */
+export async function fetchTagHotels(tagId: number): Promise<Hotel[]> {
+  const res = await apiFetch(`/post/tags/${tagId}/hotels/`);
+  return unwrapEnvelope<Hotel[]>(res, "Failed to load tag hotels");
 }
 
 /** Nearest active hotel to a point (within the backend's radius), or null. */

@@ -2,23 +2,13 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useSession } from "@/app/providers";
-import GoogleButton from "@/components/mobile/GoogleButton";
-
-const OAUTH_ERRORS: Record<string, string> = {
-  invalid_state: "Something went wrong signing in with Google. Please try again.",
-  missing_code: "Something went wrong signing in with Google. Please try again.",
-  google_auth_failed:
-    "Something went wrong signing in with Google. Please try again.",
-  incomplete_profile:
-    "Your Google account didn't share an email. Please try a different account.",
-};
+import { OtpError, loginRequest } from "@/lib/api";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const params = useSearchParams();
-  const { status } = useSession();
+  const { status, refetch } = useSession();
 
   useEffect(() => {
     if (status === "authenticated") router.replace("/feed");
@@ -26,12 +16,41 @@ export default function LoginScreen() {
 
   // TODO: temporarily disabled — non-mobile users are no longer blocked
   const showDesktopNudge = false;
+  const [identifier, setIdentifier] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
-  useEffect(() => {
-    const e = params.get("error");
-    if (e) setError(OAUTH_ERRORS[e] ?? `Google sign-in failed: ${e}`);
-  }, [params]);
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (submitting) return;
+    if (!identifier.trim()) {
+      setError("Please enter your phone number or username");
+      return;
+    }
+    if (!password) {
+      setError("Please enter your password");
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      await loginRequest(identifier.trim(), password);
+      await refetch();
+      router.replace("/feed");
+    } catch (err) {
+      setError(
+        err instanceof OtpError && err.status === 401
+          ? "Incorrect username/phone or password"
+          : err instanceof Error
+            ? err.message
+            : "Login failed"
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
 
   return (
     <div className="relative flex flex-col min-h-screen bg-[#FAF7F2] font-sans">
@@ -96,16 +115,45 @@ export default function LoginScreen() {
         />
       </div>
 
-      {/* Google sign-in */}
-      <div className="flex flex-col gap-4 px-6 mt-10">
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4 px-6 mt-10">
+        <input
+          type="text"
+          value={identifier}
+          onChange={(e) => setIdentifier(e.target.value)}
+          placeholder="Phone or Username (e.g. +919876543210)"
+          autoComplete="username"
+          disabled={submitting}
+          className="w-full rounded-2xl border border-[#E0E0E0] bg-white px-4 py-3.5 text-base text-[#1A1A1A] outline-none focus:border-[#6F2DBD]"
+        />
+        <div className="relative">
+          <input
+            type={showPassword ? "text" : "password"}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Password"
+            autoComplete="current-password"
+            disabled={submitting}
+            className="w-full rounded-2xl border border-[#E0E0E0] bg-white px-4 py-3.5 pr-16 text-base text-[#1A1A1A] outline-none focus:border-[#6F2DBD]"
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword((s) => !s)}
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-semibold text-[#6F2DBD]"
+          >
+            {showPassword ? "Hide" : "Show"}
+          </button>
+        </div>
         {error && (
           <p className="text-red-500 text-sm text-center">{error}</p>
         )}
-        <GoogleButton label="Continue with Google" onError={setError} />
-        <p className="text-[#888] text-xs text-center px-4">
-          We use Google to keep your account secure. No passwords to remember.
-        </p>
-      </div>
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full rounded-2xl bg-[#6F2DBD] py-3.5 text-base font-bold text-white disabled:opacity-60"
+        >
+          {submitting ? "Signing in…" : "Log In"}
+        </button>
+      </form>
 
       {/* Purple bottom strip */}
       <div className="flex-1" />

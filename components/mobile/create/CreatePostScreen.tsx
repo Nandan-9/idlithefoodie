@@ -16,6 +16,7 @@ import ConfirmDialog from "@/components/mobile/profile/ConfirmDialog";
 import Stars from "@/components/mobile/explore/Stars";
 import MediaPicker from "./MediaPicker";
 import HotelSelect from "./HotelSelect";
+import TagSelect from "./TagSelect";
 import CameraCaptureScreen from "./CameraCaptureScreen";
 
 const RATING_LABELS: Record<RatingCategory, string> = {
@@ -34,7 +35,7 @@ const EMPTY_RATINGS: Record<RatingCategory, CategoryRating> = {
 };
 
 type FieldErrors = Partial<
-  Record<"description" | "hotel" | "media" | "ratings", string>
+  Record<"description" | "hotel" | "media" | "ratings" | "tags", string>
 >;
 
 type MediaItem = { file: File; previewUrl: string; type: "image" | "video" };
@@ -46,6 +47,7 @@ export default function CreatePostScreen() {
 
   const [hotel, setHotel] = useState<Hotel | null>(null);
   const [description, setDescription] = useState("");
+  const [tags, setTags] = useState<number[]>([]);
   const [ratings, setRatings] =
     useState<Record<RatingCategory, CategoryRating>>(EMPTY_RATINGS);
 
@@ -157,6 +159,7 @@ export default function CreatePostScreen() {
       await createPost({
         hotel: hotel.id,
         description: description.trim(),
+        tags,
         media: uploaded.map((u, i) => ({
           content_type: u.type,
           category:
@@ -301,6 +304,8 @@ export default function CreatePostScreen() {
             <p className="text-red-500 text-xs mt-1 ml-1">{fieldErrors.description}</p>
           )}
         </div>
+
+            <TagSelect value={tags} onChange={setTags} error={fieldErrors.tags} />
 
             <button
               onClick={() => setStep(3)}

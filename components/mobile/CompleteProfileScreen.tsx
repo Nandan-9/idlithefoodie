@@ -1,11 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "@/app/providers";
 import { API_BASE, isApiConfigured } from "@/lib/config";
+import { OtpError, sendUserSignupOtp, verifyUserSignupOtp } from "@/lib/api";
 
 const PHONE_RE = /^\+91[6-9]\d{9}$/;
+const RESEND_COOLDOWN_SECONDS = 30;
 
 /** Best-effort, display-only decode of the Google registration JWT payload. */
 function peekToken(token: string): { name?: string; picture?: string; email?: string } {
@@ -46,13 +48,40 @@ export default function CompleteProfileScreen() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
+  const [stage, setStage] = useState<"details" | "otp">("details");
+  const [code, setCode] = useState("");
+  const [otpError, setOtpError] = useState<string | null>(null);
+  const [resendSecondsLeft, setResendSecondsLeft] = useState(0);
+  const resendTimer = useRef<ReturnType<typeof setInterval> | null>(null);
+
   useEffect(() => {
     if (!token) {
       router.replace("/login?error=incomplete_profile");
     }
   }, [token, router]);
 
-  async function handleSubmit(e: React.FormEvent) {
+  useEffect(() => {
+    return () => {
+      if (resendTimer.current) clearInterval(resendTimer.current);
+    };
+  }, []);
+
+  function startResendTimer() {
+    if (resendTimer.current) clearInterval(resendTimer.current);
+    setResendSecondsLeft(RESEND_COOLDOWN_SECONDS);
+    resendTimer.current = setInterval(() => {
+      setResendSecondsLeft((s) => {
+        if (s <= 1 && resendTimer.current) {
+          clearInterval(resendTimer.current);
+        }
+        return s - 1;
+      });
+    }, 1000);
+  }
+
+  const phone = `+91${phone10}`;
+
+  async function handleSubmitDetails(e: React.FormEvent) {
     e.preventDefault();
     if (submitting || !token) return;
 
@@ -61,7 +90,6 @@ export default function CompleteProfileScreen() {
     setFormError(null);
 
     const u = username.trim();
-    const phone = `+91${phone10}`;
     if (!u) {
       setUsernameError("Please choose a username.");
       return;
@@ -81,11 +109,66 @@ export default function CompleteProfileScreen() {
 
     setSubmitting(true);
     try {
+      await sendUserSignupOtp(phone);
+      setStage("otp");
+      setOtpError(null);
+      startResendTimer();
+    } catch (err) {
+      if (err instanceof OtpError && /phone/i.test(err.message)) {
+        setPhoneError(err.message);
+      } else {
+        setFormError(err instanceof Error ? err.message : "Network error. Please try again.");
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function handleResend() {
+    if (submitting || resendSecondsLeft > 0) return;
+    setSubmitting(true);
+    setOtpError(null);
+    try {
+      await sendUserSignupOtp(phone);
+      startResendTimer();
+    } catch (err) {
+      setOtpError(err instanceof Error ? err.message : "Could not resend the code.");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  function handleChangeNumber() {
+    if (resendTimer.current) clearInterval(resendTimer.current);
+    setStage("details");
+    setCode("");
+    setOtpError(null);
+  }
+
+  async function handleVerifyOtp(e: React.FormEvent) {
+    e.preventDefault();
+    if (submitting || !token) return;
+
+    if (code.length !== 6) {
+      setOtpError("Enter the 6-digit code");
+      return;
+    }
+
+    setSubmitting(true);
+    setOtpError(null);
+    try {
+      const verificationToken = await verifyUserSignupOtp(phone, code);
+
       const res = await fetch(`${API_BASE}/auth/google/complete/`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token, username: u, phone }),
+        body: JSON.stringify({
+          token,
+          username: username.trim(),
+          phone,
+          verification_token: verificationToken,
+        }),
       });
       const body = await res.json().catch(() => null);
 
@@ -110,15 +193,24 @@ export default function CompleteProfileScreen() {
       }
       if (/username/i.test(message)) {
         setUsernameError(message);
+        setStage("details");
         return;
       }
-      if (/phone/i.test(message)) {
-        setPhoneError(message);
-        return;
+      setOtpError(message);
+    } catch (err) {
+      if (err instanceof OtpError) {
+        if (err.status === 410) {
+          setOtpError("Code expired, please request a new one.");
+        } else if (err.status === 401) {
+          setOtpError("Incorrect code.");
+        } else if (err.status === 429) {
+          setOtpError("Please wait before requesting another code.");
+        } else {
+          setOtpError(err.message);
+        }
+      } else {
+        setFormError("Network error. Please try again.");
       }
-      setFormError(message);
-    } catch {
-      setFormError("Network error. Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -132,6 +224,67 @@ export default function CompleteProfileScreen() {
     );
   }
 
+  if (stage === "otp") {
+    return (
+      <div className="flex min-h-screen flex-col bg-[#FAF7F2] px-6 pt-16 font-sans">
+        <h1 className="text-[#6F2DBD] text-2xl font-extrabold">Verify your number</h1>
+        <p className="text-[#888] text-sm mt-1">Enter the OTP sent to {phone}.</p>
+
+        <form onSubmit={handleVerifyOtp} className="flex flex-col gap-4 mt-8">
+          <div>
+            <div className="flex items-center gap-3 bg-white border border-[#E5E0F5] rounded-2xl px-4 py-4 shadow-sm">
+              <input
+                type="text"
+                inputMode="numeric"
+                placeholder="123456"
+                maxLength={6}
+                autoComplete="one-time-code"
+                value={code}
+                onChange={(e) => {
+                  setCode(e.target.value.replace(/\D/g, "").slice(0, 6));
+                  setOtpError(null);
+                }}
+                className="flex-1 bg-transparent text-[#333] placeholder-[#BBB] text-[20px] tracking-[0.4em] text-center outline-none"
+              />
+            </div>
+            {otpError && <p className="text-red-500 text-xs mt-1 px-1">{otpError}</p>}
+          </div>
+
+          {formError && (
+            <p className="text-red-500 text-sm text-center">{formError}</p>
+          )}
+
+          <button
+            type="submit"
+            disabled={submitting}
+            className="w-full bg-[#6F2DBD] text-white font-bold text-base rounded-2xl py-4 mt-2 shadow-md active:scale-95 transition-transform disabled:opacity-60"
+          >
+            {submitting ? "Verifying…" : "Verify & continue"}
+          </button>
+
+          <div className="flex items-center justify-between text-sm">
+            <button
+              type="button"
+              onClick={handleChangeNumber}
+              disabled={submitting}
+              className="text-[#6F2DBD] font-semibold disabled:opacity-60"
+            >
+              Change phone number
+            </button>
+            <button
+              type="button"
+              onClick={handleResend}
+              disabled={submitting || resendSecondsLeft > 0}
+              className="text-[#6F2DBD] font-semibold disabled:opacity-60"
+            >
+              {resendSecondsLeft > 0 ? `Resend in ${resendSecondsLeft}s` : "Resend OTP"}
+            </button>
+          </div>
+        </form>
+      </div>
+    );
+  }
+
   return (
     <div className="flex min-h-screen flex-col bg-[#FAF7F2] px-6 pt-16 font-sans">
       <h1 className="text-[#6F2DBD] text-2xl font-extrabold">Almost there!</h1>
@@ -140,7 +293,7 @@ export default function CompleteProfileScreen() {
         phone number to finish setting up your account.
       </p>
 
-      <form onSubmit={handleSubmit} className="flex flex-col gap-4 mt-8">
+      <form onSubmit={handleSubmitDetails} className="flex flex-col gap-4 mt-8">
         <div>
           <div className="flex items-center gap-3 bg-white border border-[#E5E0F5] rounded-2xl px-4 py-4 shadow-sm">
             <span className="text-[#9B8DC4] text-[15px]">@</span>
@@ -188,7 +341,7 @@ export default function CompleteProfileScreen() {
           disabled={submitting}
           className="w-full bg-[#6F2DBD] text-white font-bold text-base rounded-2xl py-4 mt-2 shadow-md active:scale-95 transition-transform disabled:opacity-60"
         >
-          {submitting ? "Finishing up…" : "Continue"}
+          {submitting ? "Sending OTP…" : "Continue"}
         </button>
       </form>
     </div>

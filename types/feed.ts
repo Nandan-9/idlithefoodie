@@ -99,9 +99,12 @@ export type PostCreateMedia = {
   position?: number;
 };
 
+export type Tag = { id: number; name: string };
+
 export type PostCreate = {
   hotel: number;
   description?: string;
+  tags?: number[];
   media: PostCreateMedia[];
   status?: "draft" | "published" | "archived";
   ratings: PostRatingItem[];
