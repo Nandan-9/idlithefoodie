@@ -48,12 +48,14 @@ function createPinElement(name: string): HTMLButtonElement {
   const btn = document.createElement("button");
   btn.type = "button";
   btn.setAttribute("aria-label", name);
-  btn.innerHTML = `<svg width="34" height="42" viewBox="0 0 40 48" aria-hidden="true">
-    <path d="M22 38.14A18.25 18.25 0 1 0 6 31.71L14 44.8Z" fill="#6F2DBD" stroke="#fff" stroke-width="2.5"/>
-    <circle cx="20" cy="19" r="6.5" fill="#fff"/>
+  // Tip of the pin is at the bottom-centre of the viewBox, which is where the
+  // marker's "bottom" anchor lands on the coordinate.
+  btn.innerHTML = `<svg width="34" height="40" viewBox="0 0 40 47" style="display:block" aria-hidden="true">
+    <path d="M20 45C20 45 3 30 3 18.5a17 17 0 1 1 34 0C37 30 20 45 20 45Z" fill="#6F2DBD" stroke="#fff" stroke-width="2.5"/>
+    <circle cx="20" cy="18.5" r="6.5" fill="#fff"/>
   </svg>`;
   btn.style.cssText =
-    "position:relative;background:none;border:0;padding:0;cursor:pointer;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));";
+    "background:none;border:0;padding:0;cursor:pointer;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));";
   const label = document.createElement("span");
   label.textContent = name;
   label.style.cssText =
