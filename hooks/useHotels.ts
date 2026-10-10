@@ -10,9 +10,13 @@ type HotelsState = {
   error: string | null;
 };
 
+// Survives client-side navigation so returning to /hotels renders the last
+// known list immediately (then revalidates) instead of starting empty.
+let cachedHotels: Hotel[] = [];
+
 export function useHotels() {
   const [state, setState] = useState<HotelsState>({
-    hotels: [],
+    hotels: cachedHotels,
     loading: false,
     error: null,
   });
@@ -21,6 +25,7 @@ export function useHotels() {
     setState((s) => ({ ...s, loading: true, error: null }));
     try {
       const hotels = await fetchHotels();
+      cachedHotels = hotels;
       setState((s) => ({ ...s, hotels, loading: false }));
     } catch {
       setState((s) => ({
