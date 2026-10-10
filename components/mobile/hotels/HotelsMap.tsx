@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
+import { hotelMapsUrl } from "@/lib/geo";
 import type { Hotel } from "@/types/feed";
 
 // Turbopack can't bundle MapLibre's inline worker, so serve it from /public
@@ -56,7 +56,6 @@ function createPinElement(name: string): HTMLButtonElement {
 }
 
 export default function HotelsMap({ hotels, is3D }: Props) {
-  const router = useRouter();
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const markersRef = useRef<maplibregl.Marker[]>([]);
@@ -177,7 +176,12 @@ export default function HotelsMap({ hotels, is3D }: Props) {
     const pins = toPins(hotels);
     for (const { hotel, lngLat } of pins) {
       const el = createPinElement(hotel.name);
-      el.addEventListener("click", () => router.push(`/explore/${hotel.id}`));
+      // The Google Maps URL opens the Maps app on phones that have it and a
+      // browser tab elsewhere (see CLAUDE.md: window.open, never router).
+      el.addEventListener("click", () => {
+        const url = hotelMapsUrl(hotel.location, hotel.name);
+        if (url) window.open(url, "_blank");
+      });
 
       const popup = new maplibregl.Popup({ offset: 30, closeButton: false })
         .setText(hotel.name);
@@ -198,7 +202,7 @@ export default function HotelsMap({ hotels, is3D }: Props) {
 
     const bounds = boundsOf(pins);
     if (bounds) map.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 0 });
-  }, [hotels, router]);
+  }, [hotels]);
 
   if (failed) {
     return (
