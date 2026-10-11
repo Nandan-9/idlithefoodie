@@ -4,13 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import type { Hotel } from "@/types/feed";
+import {
+  DEFAULT_CENTER,
+  DEFAULT_ZOOM,
+  STYLE_URL,
+} from "@/lib/mapConfig";
 
 // Turbopack can't bundle MapLibre's inline worker, so serve it from /public
 // (copied from node_modules/maplibre-gl/dist/ along with maplibre-gl-shared.mjs;
 // re-copy both after upgrading maplibre-gl).
 maplibregl.setWorkerUrl("/maplibre-gl-worker.mjs");
 
-const STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
 const BUILDINGS_LAYER = "hotels-3d-buildings";
 const SRC_HOTELS = "hotels";
 const SRC_SELECTED = "hotel-selected";
@@ -21,8 +25,6 @@ const L_LABELS = "hotel-labels";
 const FONT = ["Noto Sans Bold"];
 const BRAND = "#6F2DBD";
 const INK = "#2A1240";
-// Trivandrum fallback when no hotel has coordinates.
-const DEFAULT_CENTER: [number, number] = [76.9366, 8.5241];
 // Hotel names under the pins only show from this zoom (street level) upward.
 const LABEL_MIN_ZOOM = 14;
 
@@ -31,6 +33,8 @@ type Props = {
   /** The open hotel, highlighted on the map and flown to. */
   selected: Hotel | null;
   is3D: boolean;
+  /** Re-frame the map around the hotels whenever they change (search / tag). */
+  autoFit: boolean;
   /** Fraction of the map height covered by the bottom sheet. */
   bottomFrac: number;
   onToggle3D: () => void;
@@ -81,6 +85,7 @@ export default function HotelsMap({
   hotels,
   selected,
   is3D,
+  autoFit,
   bottomFrac,
   onToggle3D,
   onSelectHotel,
@@ -93,11 +98,10 @@ export default function HotelsMap({
   const userMarkerRef = useRef<maplibregl.Marker | null>(null);
   const is3DRef = useRef(is3D);
   const bottomFracRef = useRef(bottomFrac);
+  const autoFitRef = useRef(autoFit);
   const hasSelectedRef = useRef(false);
   const onSelectRef = useRef(onSelectHotel);
   const onViewRef = useRef(onViewChange);
-  // Hotels known at mount, so the first camera position is already correct.
-  const initialHotels = useRef(hotels);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
   const [bearing, setBearing] = useState(0);
@@ -107,17 +111,16 @@ export default function HotelsMap({
   useEffect(() => {
     is3DRef.current = is3D;
     bottomFracRef.current = bottomFrac;
+    autoFitRef.current = autoFit;
     hasSelectedRef.current = selected !== null;
     onSelectRef.current = onSelectHotel;
     onViewRef.current = onViewChange;
-  }, [is3D, bottomFrac, selected, onSelectHotel, onViewChange]);
+  }, [is3D, autoFit, bottomFrac, selected, onSelectHotel, onViewChange]);
 
   // Create the map once.
   useEffect(() => {
     const el = containerRef.current;
     if (!el) return;
-
-    const initialBounds = boundsOf(toPins(initialHotels.current));
 
     let map: maplibregl.Map;
     try {
@@ -125,11 +128,7 @@ export default function HotelsMap({
         container: el,
         style: STYLE_URL,
         center: DEFAULT_CENTER,
-        zoom: 11,
-        ...(initialBounds && {
-          bounds: initialBounds,
-          fitBoundsOptions: { padding: 60, maxZoom: 15 },
-        }),
+        zoom: DEFAULT_ZOOM,
         maxZoom: 17,
         maxPitch: 75,
         pixelRatio: Math.min(window.devicePixelRatio, 2),
@@ -349,7 +348,7 @@ export default function HotelsMap({
     );
 
     const bounds = boundsOf(pins);
-    if (bounds && !hasSelectedRef.current) {
+    if (bounds && autoFitRef.current && !hasSelectedRef.current) {
       const bottom = (containerRef.current?.clientHeight ?? 0) * bottomFracRef.current;
       map.fitBounds(bounds, {
         padding: { top: 130, bottom: bottom + 40, left: 40, right: 40 },

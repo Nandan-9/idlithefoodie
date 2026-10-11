@@ -8,6 +8,20 @@ const nextConfig: NextConfig = {
   },
   devIndicators: false,
   allowedDevOrigins: ["192.168.1.2", "192.168.1.3"],
+  async headers() {
+    // The MapLibre worker is ~500 KB and unhashed; let repeat visits skip it.
+    return [
+      {
+        source: "/maplibre-gl-(worker|shared).mjs",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=604800, stale-while-revalidate=86400",
+          },
+        ],
+      },
+    ];
+  },
   images: {
     remotePatterns: [
       { protocol: "http", hostname: "127.0.0.1" },

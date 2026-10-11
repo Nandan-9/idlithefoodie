@@ -293,6 +293,7 @@ export default function HotelsListScreen() {
           hotels={filtered}
           selected={selectedHotel}
           is3D={mode === "3d"}
+          autoFit={filtersOn}
           bottomFrac={bottomFrac}
           onToggle3D={toggle3D}
           onSelectHotel={openHotel}
