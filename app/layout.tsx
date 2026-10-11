@@ -19,6 +19,7 @@ const baloo = Baloo_2({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? "https://idli.food"),
   title: "IDLI — Join the waitlist for Kerala's food community",
   description:
     "IDLI is the food community built for real foodies. Join the waitlist for early access — see what people are actually eating near you, share your food finds, and be part of a community that cares about food as much as you do.",

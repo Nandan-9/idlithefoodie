@@ -7,6 +7,7 @@ import HotelProfileCard from "./HotelProfileCard";
 import HotelReviewsPreview from "./HotelReviewsPreview";
 import HotelReviewsSheet from "./HotelReviewsSheet";
 import HotelPostsGrid from "./HotelPostsGrid";
+import ShareHotelModal from "../hotels/ShareHotelModal";
 
 type Props = {
   hotelId: number;
@@ -30,6 +31,7 @@ export default function HotelProfileContent({ hotelId, onClose }: Props) {
     submitReview,
   } = useHotelProfile(hotelId);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
 
   return (
     <>
@@ -61,7 +63,7 @@ export default function HotelProfileContent({ hotelId, onClose }: Props) {
 
         {profile && (
           <div className="shrink-0">
-            <HotelCover onClose={onClose} />
+            <HotelCover onClose={onClose} onShare={() => setShareOpen(true)} />
             <HotelProfileCard
               profile={profile}
               ratings={ratings}
@@ -78,6 +80,10 @@ export default function HotelProfileContent({ hotelId, onClose }: Props) {
           </div>
         )}
       </div>
+
+      {profile && shareOpen && (
+        <ShareHotelModal hotelName={profile.name} onClose={() => setShareOpen(false)} />
+      )}
 
       {profile && sheetOpen && (
         <HotelReviewsSheet
