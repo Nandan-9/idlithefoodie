@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { useHotels } from "@/hooks/useHotels";
 import { fetchHotels, fetchTags, fetchTagHotels } from "@/lib/api";
 import type { Hotel, Tag } from "@/types/feed";
+import TagFilterSheet from "./TagFilterSheet";
 import { useRouter, useSearchParams } from "next/navigation";
 import { slugify } from "@/lib/slug";
 import AppShell from "@/components/mobile/AppShell";
@@ -80,13 +81,18 @@ function RowSkeletons() {
   );
 }
 
+/** Tag chips shown on the map; the rest live behind the "More tags" button. */
+const VISIBLE_TAGS = 3;
+
 export default function HotelsListScreen() {
   const { hotels, loading, error, refresh } = useHotels();
   const [mode, setMode] = useState<"2d" | "3d">("2d");
   const [snap, setSnap] = useState<Snap>("peek");
   const [dragHeight, setDragHeight] = useState<number | null>(null);
   const [tags, setTags] = useState<Tag[]>([]);
-  const [activeTag, setActiveTag] = useState<number | null>(null);
+  const [activeTags, setActiveTags] = useState<number[]>([]);
+  const [tagsOpen, setTagsOpen] = useState(false);
+  const tagCache = useRef(new Map<number, Hotel[]>());
   const [tagLoading, setTagLoading] = useState(false);
   const [tagHotels, setTagHotels] = useState<Hotel[]>([]);
   const [searchText, setSearchText] = useState("");
@@ -98,8 +104,6 @@ export default function HotelsListScreen() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const place = searchParams.get("place");
-  // Set when this session pushed ?place=, so closing can pop it off history.
-  const pushedPlace = useRef(false);
   // Latest-request-wins guard shared by search and tag fetches.
   const requestId = useRef(0);
   const searchTimer = useRef<number | undefined>(undefined);
@@ -115,7 +119,7 @@ export default function HotelsListScreen() {
 
   async function runSearch(q: string) {
     const id = ++requestId.current;
-    setActiveTag(null);
+    setActiveTags([]);
     setTagLoading(false);
     setSearchFailed(false);
     setSearching(true);
@@ -158,29 +162,46 @@ export default function HotelsListScreen() {
     onSearchChange("");
   }
 
-  async function pickTag(id: number) {
+  async function applyTags(next: number[]) {
     window.clearTimeout(searchTimer.current);
     setSearchText("");
     setSearchResults(null);
     setSearching(false);
     setSearchFailed(false);
     const reqId = ++requestId.current;
-    if (activeTag === id) {
-      setActiveTag(null);
+    setActiveTags(next);
+    if (next.length === 0) {
+      setTagHotels([]);
       setTagLoading(false);
       return;
     }
-    setActiveTag(id);
     setTagLoading(true);
-    setTagHotels([]);
     try {
-      const result = await fetchTagHotels(id);
-      if (reqId === requestId.current) setTagHotels(result);
+      const lists = await Promise.all(
+        next.map(async (tagId) => {
+          const cached = tagCache.current.get(tagId);
+          if (cached) return cached;
+          const result = await fetchTagHotels(tagId);
+          tagCache.current.set(tagId, result);
+          return result;
+        })
+      );
+      if (reqId !== requestId.current) return;
+      const byId = new Map<number, Hotel>();
+      for (const list of lists) for (const h of list) byId.set(h.id, h);
+      setTagHotels([...byId.values()]);
     } catch {
-      if (reqId === requestId.current) setActiveTag(null);
+      if (reqId === requestId.current) {
+        setActiveTags([]);
+        setTagHotels([]);
+      }
     } finally {
       if (reqId === requestId.current) setTagLoading(false);
     }
+  }
+
+  function toggleTag(id: number) {
+    applyTags(activeTags.includes(id) ? activeTags.filter((t) => t !== id) : [...activeTags, id]);
   }
 
   function resetFilters() {
@@ -190,7 +211,8 @@ export default function HotelsListScreen() {
     setSearchResults(null);
     setSearching(false);
     setSearchFailed(false);
-    setActiveTag(null);
+    setActiveTags([]);
+    setTagHotels([]);
     setTagLoading(false);
   }
 
@@ -201,23 +223,20 @@ export default function HotelsListScreen() {
     : null;
 
   function openHotel(hotel: Hotel) {
-    pushedPlace.current = true;
     router.push(`/hotels?place=${slugify(hotel.name)}`, { scroll: false });
   }
 
   function closeHotel() {
-    if (pushedPlace.current) {
-      pushedPlace.current = false;
-      router.back();
-    } else {
-      router.replace("/hotels", { scroll: false });
-    }
+    router.replace("/hotels", { scroll: false });
   }
 
   // ---- list data -----------------------------------------------------------
 
-  const filtered = searchResults ?? (activeTag === null ? hotels : tagHotels);
-  const filtersOn = searchResults !== null || activeTag !== null;
+  const filtered = searchResults ?? (activeTags.length === 0 ? hotels : tagHotels);
+  const hiddenActive = activeTags.filter(
+    (id) => !tags.slice(0, VISIBLE_TAGS).some((t) => t.id === id)
+  ).length;
+  const filtersOn = searchResults !== null || activeTags.length > 0;
 
   const inView = useMemo(() => {
     if (showAll || viewIds === null) return null;
@@ -345,21 +364,21 @@ export default function HotelsListScreen() {
         <div
           role="group"
           aria-label="Filter by tag"
-          className="absolute inset-x-0 top-[68px] z-10 flex gap-2 overflow-x-auto px-3 pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="absolute inset-x-0 top-[68px] z-10 flex gap-2 px-3 pb-2"
         >
-          {tags.map((t) => {
-            const active = activeTag === t.id;
+          {tags.slice(0, VISIBLE_TAGS).map((t) => {
+            const active = activeTags.includes(t.id);
             return (
               <button
                 key={t.id}
                 type="button"
-                onClick={() => pickTag(t.id)}
+                onClick={() => toggleTag(t.id)}
                 aria-pressed={active}
-                className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-semibold shadow-[0_1px_6px_rgba(42,18,64,0.18)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6F2DBD] ${
+                className={`flex min-w-0 items-center gap-1.5 rounded-full px-3.5 py-2 text-sm font-semibold shadow-[0_1px_6px_rgba(42,18,64,0.18)] transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6F2DBD] ${
                   active ? "bg-[#6F2DBD] text-white" : "bg-white text-[#3B2A57]"
                 }`}
               >
-                {t.name}
+                <span className="truncate">{t.name}</span>
                 {active && (
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden="true">
                     <path d="M6 6l12 12M18 6L6 18" />
@@ -368,7 +387,40 @@ export default function HotelsListScreen() {
               </button>
             );
           })}
+          {tags.length > VISIBLE_TAGS && (
+            <button
+              type="button"
+              onClick={() => setTagsOpen(true)}
+              aria-label={
+                hiddenActive > 0 ? `More tags, ${hiddenActive} selected` : "More tags"
+              }
+              className={`relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full shadow-[0_1px_6px_rgba(42,18,64,0.18)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6F2DBD] ${
+                hiddenActive > 0 ? "bg-[#6F2DBD] text-white" : "bg-white text-[#3B2A57]"
+              }`}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true">
+                <path d="M4 7h10M18 7h2M4 17h2M10 17h10" />
+                <circle cx="16" cy="7" r="2" />
+                <circle cx="8" cy="17" r="2" />
+              </svg>
+              {hiddenActive > 0 && (
+                <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#E84855] px-1 text-[10px] font-bold text-white">
+                  {hiddenActive}
+                </span>
+              )}
+            </button>
+          )}
         </div>
+      )}
+
+      {tagsOpen && (
+        <TagFilterSheet
+          tags={tags}
+          selected={activeTags}
+          onToggle={toggleTag}
+          onClear={() => applyTags([])}
+          onClose={() => setTagsOpen(false)}
+        />
       )}
 
       <div className="pointer-events-none absolute inset-x-0 bottom-16 z-20 flex flex-col lg:bottom-0">
