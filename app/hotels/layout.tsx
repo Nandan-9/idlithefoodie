@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { preconnect } from "react-dom";
-import AuthGate from "@/components/AuthGate";
 import MapWarmup from "@/components/mobile/hotels/MapWarmup";
 import { TILE_ORIGIN } from "@/lib/mapConfig";
 
@@ -10,7 +9,7 @@ export default function HotelsLayout({ children }: { children: ReactNode }) {
   return (
     <>
       <MapWarmup />
-      <AuthGate>{children}</AuthGate>
+      {children}
     </>
   );
 }

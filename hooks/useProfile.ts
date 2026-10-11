@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { fetchProfile } from "@/lib/api";
+import { useSession } from "@/app/providers";
 import type { Profile, ProfileState } from "@/types/profile";
 
 export function useProfile() {
+  const { status } = useSession();
   const [state, setState] = useState<ProfileState>({
     profile: null,
     loading: false,
@@ -26,8 +28,8 @@ export function useProfile() {
   }, []);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    if (status === "authenticated") load();
+  }, [load, status]);
 
   const refresh = useCallback(() => {
     load();

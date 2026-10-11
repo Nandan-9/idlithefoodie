@@ -7,6 +7,8 @@ import {
   deleteComment,
   fetchProfile,
 } from "@/lib/api";
+import { useSession } from "@/app/providers";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 import type { Comment } from "@/types/feed";
 import CommentList from "./CommentList";
 import CommentInput from "./CommentInput";
@@ -25,6 +27,8 @@ export default function CommentsSheet({
 }: Props) {
   const [comments, setComments] = useState<Comment[]>([]);
   const [loading, setLoading] = useState(true);
+  const { status } = useSession();
+  const requireAuth = useRequireAuth();
   const [me, setMe] = useState<{ username: string; avatar: string | null }>();
 
   useEffect(() => {
@@ -33,15 +37,16 @@ export default function CommentsSheet({
       .then((data) => { if (!cancelled) setComments(data); })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false); });
-    fetchProfile()
+    if (status === "authenticated") fetchProfile()
       .then((p) => {
         if (!cancelled) setMe({ username: p.username, avatar: p.avatar || null });
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, [postId]);
+  }, [postId, status]);
 
   async function handleSubmit(content: string) {
+    if (!requireAuth()) return;
     const tempId = `temp-${Date.now()}`;
     const optimistic: Comment = {
       id: tempId,
@@ -63,6 +68,7 @@ export default function CommentsSheet({
   }
 
   async function handleDelete(commentId: string) {
+    if (!requireAuth()) return;
     if (commentId.startsWith("temp-")) return;
     const prev = comments;
     setComments((cs) => cs.filter((c) => c.id !== commentId));

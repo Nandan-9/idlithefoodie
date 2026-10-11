@@ -9,6 +9,7 @@ import {
   rateHotel,
   reviewHotel,
 } from "@/lib/api";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 import type { Post } from "@/types/feed";
 import type {
   HotelProfile,
@@ -33,6 +34,7 @@ type State = {
 };
 
 export function useHotelProfile(hotelId: number) {
+  const requireAuth = useRequireAuth();
   const [state, setState] = useState<State>({
     profile: null,
     ratings: EMPTY_RATINGS,
@@ -80,6 +82,7 @@ export function useHotelProfile(hotelId: number) {
 
   const submitRating = useCallback(
     async (count: number) => {
+      if (!requireAuth()) return;
       const prev = state.ratings;
       setState((s) => ({
         ...s,
@@ -99,16 +102,17 @@ export function useHotelProfile(hotelId: number) {
         throw err;
       }
     },
-    [hotelId, state.ratings]
+    [hotelId, state.ratings, requireAuth]
   );
 
   const submitReview = useCallback(
     async (text: string) => {
+      if (!requireAuth()) return;
       await reviewHotel(hotelId, text);
       const fresh = await fetchHotelReviews(hotelId);
       setState((s) => ({ ...s, reviews: fresh }));
     },
-    [hotelId]
+    [hotelId, requireAuth]
   );
 
   return { ...state, refresh, submitRating, submitReview };

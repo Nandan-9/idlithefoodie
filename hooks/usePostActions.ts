@@ -10,6 +10,7 @@ import {
   updatePost,
   deletePost,
 } from "@/lib/api";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { setOverride } from "@/lib/postOverrides";
 import type { Post, PostUpdate } from "@/types/feed";
 
@@ -22,7 +23,10 @@ import type { Post, PostUpdate } from "@/types/feed";
  * the authoritative boolean the API returns (or revert on failure).
  */
 export function usePostActions() {
+  const requireAuth = useRequireAuth();
+
   const toggleLike = useCallback(async (post: Post) => {
+    if (!requireAuth()) return;
     const next = !post.is_liked;
     setOverride(post.id, { is_liked: next });
 
@@ -32,9 +36,10 @@ export function usePostActions() {
     } catch {
       setOverride(post.id, { is_liked: !next });
     }
-  }, []);
+  }, [requireAuth]);
 
   const toggleSave = useCallback(async (post: Post) => {
+    if (!requireAuth()) return;
     const next = !post.is_saved;
     setOverride(post.id, { is_saved: next });
 
@@ -44,7 +49,7 @@ export function usePostActions() {
     } catch {
       setOverride(post.id, { is_saved: !next });
     }
-  }, []);
+  }, [requireAuth]);
 
   const deleteRating = useCallback(
     async (post: Post, onDone?: () => void) => {
