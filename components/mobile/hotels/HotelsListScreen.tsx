@@ -6,7 +6,7 @@ import { useHotels } from "@/hooks/useHotels";
 import { fetchHotels, fetchTags, fetchTagHotels } from "@/lib/api";
 import type { Hotel, Tag } from "@/types/feed";
 import TagFilterSheet from "./TagFilterSheet";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { slugify } from "@/lib/slug";
 import AppShell from "@/components/mobile/AppShell";
 import HotelProfileContent from "@/components/mobile/explore/HotelProfileContent";
@@ -101,9 +101,12 @@ export default function HotelsListScreen() {
   const [searchResults, setSearchResults] = useState<Hotel[] | null>(null);
   const [viewIds, setViewIds] = useState<number[] | null>(null);
   const [showAll, setShowAll] = useState(false);
-  const router = useRouter();
   const searchParams = useSearchParams();
-  const place = searchParams.get("place");
+  const urlPlace = searchParams.get("place");
+  // Local copy so the drawer opens/closes instantly; the URL follows via the
+  // native history API (no router round-trip) and back/forward feed in below.
+  const [place, setPlace] = useState<string | null>(urlPlace);
+  useEffect(() => setPlace(urlPlace), [urlPlace]);
   // Latest-request-wins guard shared by search and tag fetches.
   const requestId = useRef(0);
   const searchTimer = useRef<number | undefined>(undefined);
@@ -223,11 +226,14 @@ export default function HotelsListScreen() {
     : null;
 
   function openHotel(hotel: Hotel) {
-    router.push(`/hotels?place=${slugify(hotel.name)}`, { scroll: false });
+    const slug = slugify(hotel.name);
+    setPlace(slug);
+    window.history.pushState(null, "", `/hotels?place=${slug}`);
   }
 
   function closeHotel() {
-    router.replace("/hotels", { scroll: false });
+    setPlace(null);
+    window.history.replaceState(null, "", "/hotels");
   }
 
   // ---- list data -----------------------------------------------------------
@@ -306,7 +312,7 @@ export default function HotelsListScreen() {
     : `${listHotels.length} ${listHotels.length === 1 ? "hotel" : "hotels"}`;
 
   return (
-    <AppShell active="hotels">
+    <AppShell active="hotels" fill>
       <div className="absolute inset-x-0 bottom-16 top-0 lg:bottom-0">
         <HotelsMap
           hotels={filtered}

@@ -9,15 +9,20 @@ type Props = {
   children: ReactNode;
   active?: Tab;
   nav?: boolean;
+  /** For screens made of absolutely positioned layers: take all space beside the nav. */
+  fill?: boolean;
 };
 
-export default function AppShell({ children, active, nav = true }: Props) {
+export default function AppShell({ children, active, nav = true, fill = false }: Props) {
   return (
     <div className="flex min-h-screen flex-col bg-[#FAF7F2] lg:flex-row lg:justify-center">
       {nav && <AppNav active={active} />}
       <main
-        className="relative flex min-h-screen w-full max-w-full min-w-0 flex-1 flex-col pb-24
-                   lg:w-auto lg:max-w-[640px] lg:flex-none lg:border-x lg:border-[#E5E0F5] lg:pb-8"
+        className={`relative flex min-h-screen w-full max-w-full min-w-0 flex-1 flex-col pb-24 ${
+          fill
+            ? "lg:pb-0"
+            : "lg:w-auto lg:max-w-[640px] lg:flex-none lg:border-x lg:border-[#E5E0F5] lg:pb-8"
+        }`}
       >
         {children}
       </main>
