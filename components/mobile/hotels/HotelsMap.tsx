@@ -12,6 +12,15 @@ maplibregl.setWorkerUrl("/maplibre-gl-worker.mjs");
 
 const STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
 const BUILDINGS_LAYER = "hotels-3d-buildings";
+const SRC_HOTELS = "hotels";
+const SRC_SELECTED = "hotel-selected";
+const L_CLUSTERS = "hotel-clusters";
+const L_CLUSTER_COUNT = "hotel-cluster-count";
+const L_PINS = "hotel-pins";
+const L_LABELS = "hotel-labels";
+const FONT = ["Noto Sans Bold"];
+const BRAND = "#6F2DBD";
+const INK = "#2A1240";
 // Trivandrum fallback when no hotel has coordinates.
 const DEFAULT_CENTER: [number, number] = [76.9366, 8.5241];
 // Hotel names under the pins only show from this zoom (street level) upward.
@@ -19,8 +28,15 @@ const LABEL_MIN_ZOOM = 14;
 
 type Props = {
   hotels: Hotel[];
+  /** The open hotel, highlighted on the map and flown to. */
+  selected: Hotel | null;
   is3D: boolean;
+  /** Fraction of the map height covered by the bottom sheet. */
+  bottomFrac: number;
+  onToggle3D: () => void;
   onSelectHotel: (hotel: Hotel) => void;
+  /** Hotel ids inside the viewport, nearest to the map centre first. */
+  onViewChange: (ids: number[]) => void;
 };
 
 type Pin = { hotel: Hotel; lngLat: [number, number] };
@@ -44,43 +60,57 @@ function boundsOf(pins: Pin[]): maplibregl.LngLatBounds | null {
   return bounds;
 }
 
-function createPinElement(name: string): HTMLButtonElement {
-  const btn = document.createElement("button");
-  btn.type = "button";
-  btn.setAttribute("aria-label", name);
-  // Tip of the pin is at the bottom-centre of the viewBox, which is where the
-  // marker's "bottom" anchor lands on the coordinate.
-  btn.innerHTML = `<svg width="34" height="40" viewBox="0 0 40 47" style="display:block" aria-hidden="true">
-    <path d="M20 45C20 45 3 30 3 18.5a17 17 0 1 1 34 0C37 30 20 45 20 45Z" fill="#6F2DBD" stroke="#fff" stroke-width="2.5"/>
-    <circle cx="20" cy="18.5" r="6.5" fill="#fff"/>
-  </svg>`;
-  btn.style.cssText =
-    "background:none;border:0;padding:0;cursor:pointer;filter:drop-shadow(0 2px 3px rgba(0,0,0,.35));";
-  const label = document.createElement("span");
-  label.textContent = name;
-  label.style.cssText =
-    "display:none;position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:2px;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;pointer-events:none;font:700 11px/1.2 system-ui,sans-serif;color:#2A1240;filter:none;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 3px #fff,0 0 3px #fff;";
-  btn.appendChild(label);
-  return btn;
+function toCollection(pins: Pin[]): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: pins.map((p) => ({
+      type: "Feature",
+      geometry: { type: "Point", coordinates: p.lngLat },
+      properties: { id: p.hotel.id, name: p.hotel.name },
+    })),
+  };
 }
 
-export default function HotelsMap({ hotels, is3D, onSelectHotel }: Props) {
+const EASE_IN_OUT = (t: number) =>
+  t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+const ctrlBtn =
+  "pointer-events-auto flex h-11 w-11 items-center justify-center rounded-full bg-white text-[#6F2DBD] shadow-[0_2px_10px_rgba(42,18,64,0.22)] transition-transform active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6F2DBD]";
+
+export default function HotelsMap({
+  hotels,
+  selected,
+  is3D,
+  bottomFrac,
+  onToggle3D,
+  onSelectHotel,
+  onViewChange,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const markersRef = useRef<maplibregl.Marker[]>([]);
-  const labelsRef = useRef<HTMLElement[]>([]);
-  const labelsOnRef = useRef(false);
+  const pinsRef = useRef<Pin[]>([]);
+  const byIdRef = useRef<Map<number, Hotel>>(new Map());
+  const userMarkerRef = useRef<maplibregl.Marker | null>(null);
   const is3DRef = useRef(is3D);
+  const bottomFracRef = useRef(bottomFrac);
+  const hasSelectedRef = useRef(false);
   const onSelectRef = useRef(onSelectHotel);
+  const onViewRef = useRef(onViewChange);
   // Hotels known at mount, so the first camera position is already correct.
   const initialHotels = useRef(hotels);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  const [bearing, setBearing] = useState(0);
+  const [locating, setLocating] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     is3DRef.current = is3D;
+    bottomFracRef.current = bottomFrac;
+    hasSelectedRef.current = selected !== null;
     onSelectRef.current = onSelectHotel;
-  }, [is3D, onSelectHotel]);
+    onViewRef.current = onViewChange;
+  }, [is3D, bottomFrac, selected, onSelectHotel, onViewChange]);
 
   // Create the map once.
   useEffect(() => {
@@ -118,22 +148,24 @@ export default function HotelsMap({ hotels, is3D, onSelectHotel }: Props) {
     }
 
     map.addControl(new maplibregl.AttributionControl({ compact: true }));
-    map.addControl(
-      new maplibregl.NavigationControl({ visualizePitch: true }),
-      "top-right"
-    );
-    // Keep the zoom/compass buttons clear of the search bar and tag chips.
-    const topRight = el.querySelector<HTMLElement>(".maplibregl-ctrl-top-right");
-    if (topRight) topRight.style.marginTop = "104px";
 
-    const syncLabels = () => {
-      const on = map.getZoom() >= LABEL_MIN_ZOOM;
-      labelsOnRef.current = on;
-      labelsRef.current.forEach((l) => {
-        l.style.display = on ? "block" : "none";
-      });
+    // Report which hotels are in view (nearest the centre first) once the
+    // camera settles, so the list can follow the map.
+    const reportView = () => {
+      const b = map.getBounds();
+      const c = map.getCenter();
+      const inView = pinsRef.current
+        .filter((p) => b.contains(p.lngLat))
+        .map((p) => ({
+          id: p.hotel.id,
+          d: (p.lngLat[0] - c.lng) ** 2 + (p.lngLat[1] - c.lat) ** 2,
+        }))
+        .sort((a, z) => a.d - z.d)
+        .map((p) => p.id);
+      onViewRef.current(inView);
     };
-    map.on("zoom", syncLabels);
+    map.on("moveend", reportView);
+    map.on("rotate", () => setBearing(map.getBearing()));
 
     map.on("load", () => {
       map.addLayer({
@@ -145,16 +177,130 @@ export default function HotelsMap({ hotels, is3D, onSelectHotel }: Props) {
         layout: { visibility: is3DRef.current ? "visible" : "none" },
         paint: {
           "fill-extrusion-color": "#d9d4cc",
-          "fill-extrusion-height": [
-            "coalesce",
-            ["get", "render_height"],
-            8,
-          ],
+          "fill-extrusion-height": ["coalesce", ["get", "render_height"], 8],
           "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
           // Must stay 1: any opacity < 1 forces an extra offscreen render pass.
           "fill-extrusion-opacity": 1,
         },
       });
+
+      // Pins are GeoJSON layers drawn by the GPU, not DOM markers, so panning
+      // stays smooth with hundreds of hotels and nearby ones cluster.
+      map.addSource(SRC_HOTELS, {
+        type: "geojson",
+        data: toCollection([]),
+        cluster: true,
+        clusterRadius: 48,
+        clusterMaxZoom: 13,
+      });
+      map.addSource(SRC_SELECTED, { type: "geojson", data: toCollection([]) });
+
+      map.addLayer({
+        id: L_CLUSTERS,
+        type: "circle",
+        source: SRC_HOTELS,
+        filter: ["has", "point_count"],
+        paint: {
+          "circle-color": BRAND,
+          "circle-radius": ["step", ["get", "point_count"], 18, 10, 22, 50, 28],
+          "circle-stroke-width": 3,
+          "circle-stroke-color": "#fff",
+        },
+      });
+      map.addLayer({
+        id: L_CLUSTER_COUNT,
+        type: "symbol",
+        source: SRC_HOTELS,
+        filter: ["has", "point_count"],
+        layout: {
+          "text-field": ["get", "point_count_abbreviated"],
+          "text-font": FONT,
+          "text-size": 13,
+          "text-allow-overlap": true,
+        },
+        paint: { "text-color": "#fff" },
+      });
+      map.addLayer({
+        id: L_PINS,
+        type: "circle",
+        source: SRC_HOTELS,
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+          "circle-color": BRAND,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 7, 16, 11],
+          "circle-stroke-width": 3,
+          "circle-stroke-color": "#fff",
+        },
+      });
+      map.addLayer({
+        id: L_LABELS,
+        type: "symbol",
+        source: SRC_HOTELS,
+        minzoom: LABEL_MIN_ZOOM,
+        filter: ["!", ["has", "point_count"]],
+        layout: {
+          "text-field": ["get", "name"],
+          "text-font": FONT,
+          "text-size": 11.5,
+          "text-anchor": "top",
+          "text-offset": [0, 1.1],
+          "text-max-width": 8,
+          "text-optional": true,
+        },
+        paint: {
+          "text-color": INK,
+          "text-halo-color": "#fff",
+          "text-halo-width": 1.6,
+        },
+      });
+      // The open hotel: halo + larger pin, always on top and never clustered.
+      map.addLayer({
+        id: "hotel-selected-halo",
+        type: "circle",
+        source: SRC_SELECTED,
+        paint: { "circle-color": BRAND, "circle-opacity": 0.22, "circle-radius": 26 },
+      });
+      map.addLayer({
+        id: "hotel-selected-pin",
+        type: "circle",
+        source: SRC_SELECTED,
+        paint: {
+          "circle-color": BRAND,
+          "circle-radius": 13,
+          "circle-stroke-width": 4,
+          "circle-stroke-color": "#fff",
+        },
+      });
+
+      const pointer = () => (map.getCanvas().style.cursor = "pointer");
+      const reset = () => (map.getCanvas().style.cursor = "");
+      for (const id of [L_CLUSTERS, L_PINS, "hotel-selected-pin"]) {
+        map.on("mouseenter", id, pointer);
+        map.on("mouseleave", id, reset);
+      }
+
+      map.on("click", L_CLUSTERS, async (e) => {
+        const f = e.features?.[0];
+        if (!f) return;
+        const src = map.getSource(SRC_HOTELS) as maplibregl.GeoJSONSource;
+        try {
+          const zoom = await src.getClusterExpansionZoom(f.properties.cluster_id);
+          map.easeTo({
+            center: (f.geometry as GeoJSON.Point).coordinates as [number, number],
+            zoom: zoom + 0.5,
+            duration: 450,
+          });
+        } catch {
+          /* cluster vanished mid-tap */
+        }
+      });
+      const pick = (e: maplibregl.MapLayerMouseEvent) => {
+        const hotel = byIdRef.current.get(Number(e.features?.[0]?.properties.id));
+        if (hotel) onSelectRef.current(hotel);
+      };
+      map.on("click", L_PINS, pick);
+      map.on("click", "hotel-selected-pin", pick);
+
       setReady(true);
     });
     map.on("error", (e) => {
@@ -164,9 +310,8 @@ export default function HotelsMap({ hotels, is3D, onSelectHotel }: Props) {
 
     mapRef.current = map;
     return () => {
-      markersRef.current.forEach((m) => m.remove());
-      markersRef.current = [];
-      labelsRef.current = [];
+      userMarkerRef.current?.remove();
+      userMarkerRef.current = null;
       map.remove();
       mapRef.current = null;
       setReady(false);
@@ -187,58 +332,193 @@ export default function HotelsMap({ hotels, is3D, onSelectHotel }: Props) {
       bearing: is3D ? -20 : 0,
       zoom: is3D ? Math.max(map.getZoom(), 15) : map.getZoom(),
       duration: 1100,
-      easing: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+      easing: EASE_IN_OUT,
     });
   }, [is3D, ready]);
 
-  // Hotel pins.
+  // Hotel pins: update the source in place instead of rebuilding anything.
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
-
-    markersRef.current.forEach((m) => m.remove());
-    markersRef.current = [];
-    labelsRef.current = [];
-    labelsOnRef.current = map.getZoom() >= LABEL_MIN_ZOOM;
+    if (!map || !ready) return;
 
     const pins = toPins(hotels);
-    for (const { hotel, lngLat } of pins) {
-      const el = createPinElement(hotel.name);
-      el.addEventListener("click", () => onSelectRef.current(hotel));
-      const label = el.lastElementChild as HTMLElement;
-      label.style.display = labelsOnRef.current ? "block" : "none";
-      labelsRef.current.push(label);
-
-      const popup = new maplibregl.Popup({ offset: 30, closeButton: false })
-        .setText(hotel.name);
-      el.addEventListener("mouseenter", () => {
-        if (!labelsOnRef.current) popup.setLngLat(lngLat).addTo(map);
-      });
-      el.addEventListener("mouseleave", () => popup.remove());
-
-      markersRef.current.push(
-        new maplibregl.Marker({
-          element: el,
-          anchor: "bottom",
-          pitchAlignment: "viewport",
-          rotationAlignment: "viewport",
-        })
-          .setLngLat(lngLat)
-          .addTo(map)
-      );
-    }
+    pinsRef.current = pins;
+    byIdRef.current = new Map(hotels.map((h) => [h.id, h]));
+    (map.getSource(SRC_HOTELS) as maplibregl.GeoJSONSource).setData(
+      toCollection(pins)
+    );
 
     const bounds = boundsOf(pins);
-    if (bounds) map.fitBounds(bounds, { padding: 60, maxZoom: 15, duration: 0 });
-  }, [hotels]);
+    if (bounds && !hasSelectedRef.current) {
+      const bottom = (containerRef.current?.clientHeight ?? 0) * bottomFracRef.current;
+      map.fitBounds(bounds, {
+        padding: { top: 130, bottom: bottom + 40, left: 40, right: 40 },
+        maxZoom: 15,
+        duration: 450,
+      });
+    } else {
+      // Camera may not move (no pins / same bounds), so report explicitly.
+      map.fire("moveend");
+    }
+  }, [hotels, ready]);
+
+  // Highlight the open hotel and bring it above the bottom sheet.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const pins = selected ? toPins([selected]) : [];
+    (map.getSource(SRC_SELECTED) as maplibregl.GeoJSONSource).setData(
+      toCollection(pins)
+    );
+    if (pins[0]) {
+      const h = containerRef.current?.clientHeight ?? 0;
+      map.easeTo({
+        center: pins[0].lngLat,
+        zoom: Math.max(map.getZoom(), 15),
+        offset: [0, -(h * bottomFracRef.current) / 2],
+        duration: 700,
+        easing: EASE_IN_OUT,
+      });
+    }
+  }, [selected, ready]);
+
+  function flash(message: string) {
+    setToast(message);
+    window.setTimeout(() => setToast(null), 2600);
+  }
+
+  function locate() {
+    const map = mapRef.current;
+    if (!map || locating) return;
+    if (!navigator.geolocation) {
+      flash("Location isn't available on this device");
+      return;
+    }
+    setLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      ({ coords }) => {
+        setLocating(false);
+        const lngLat: [number, number] = [coords.longitude, coords.latitude];
+        if (!userMarkerRef.current) {
+          const dot = document.createElement("div");
+          dot.setAttribute("aria-hidden", "true");
+          dot.style.cssText =
+            "width:18px;height:18px;border-radius:50%;background:#2F6BFF;border:3px solid #fff;box-shadow:0 0 0 6px rgba(47,107,255,.25),0 1px 4px rgba(0,0,0,.4);";
+          userMarkerRef.current = new maplibregl.Marker({ element: dot });
+        }
+        userMarkerRef.current.setLngLat(lngLat).addTo(map);
+        const h = containerRef.current?.clientHeight ?? 0;
+        map.flyTo({
+          center: lngLat,
+          zoom: Math.max(map.getZoom(), 14),
+          offset: [0, -(h * bottomFracRef.current) / 2],
+          essential: true,
+        });
+      },
+      () => {
+        setLocating(false);
+        flash("Allow location access to find hotels near you");
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 60000 }
+    );
+  }
 
   if (failed) {
     return (
       <div className="flex h-full items-center justify-center px-6 text-center text-sm text-[#555]">
-        The map couldn&apos;t load on this device. Switch to the list view.
+        The map couldn&apos;t load on this device. Check your connection and reload.
       </div>
     );
   }
 
-  return <div ref={containerRef} className="h-full w-full" />;
+  const map = () => mapRef.current;
+
+  return (
+    <div className="relative h-full w-full">
+      <div ref={containerRef} className="h-full w-full" />
+
+      {/* Map controls, in one column under the search bar and tag chips. */}
+      <div className="pointer-events-none absolute right-3 top-[112px] z-10 flex flex-col items-center gap-2">
+        <div className="pointer-events-auto flex flex-col overflow-hidden rounded-full bg-white shadow-[0_2px_10px_rgba(42,18,64,0.22)]">
+          <button
+            type="button"
+            aria-label="Zoom in"
+            onClick={() => map()?.zoomIn({ duration: 250 })}
+            className="flex h-11 w-11 items-center justify-center text-[#6F2DBD] active:bg-[#F3EEFB] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#6F2DBD]"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M12 5v14M5 12h14" />
+            </svg>
+          </button>
+          <span className="mx-2.5 h-px bg-[#E5E0F5]" />
+          <button
+            type="button"
+            aria-label="Zoom out"
+            onClick={() => map()?.zoomOut({ duration: 250 })}
+            className="flex h-11 w-11 items-center justify-center text-[#6F2DBD] active:bg-[#F3EEFB] focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[#6F2DBD]"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M5 12h14" />
+            </svg>
+          </button>
+        </div>
+
+        <button
+          type="button"
+          onClick={onToggle3D}
+          aria-pressed={is3D}
+          aria-label={is3D ? "Switch to 2D map" : "Switch to 3D map"}
+          className={`${ctrlBtn} text-xs font-extrabold ${is3D ? "!bg-[#6F2DBD] !text-white" : ""}`}
+        >
+          3D
+        </button>
+
+        <button
+          type="button"
+          onClick={locate}
+          aria-label="Show hotels near me"
+          className={ctrlBtn}
+        >
+          {locating ? (
+            <span className="h-4 w-4 animate-spin rounded-full border-2 border-[#6F2DBD] border-t-transparent" />
+          ) : (
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+              <circle cx="12" cy="12" r="3.2" />
+              <path d="M12 2.5v3.3M12 18.2v3.3M2.5 12h3.3M18.2 12h3.3" />
+              <circle cx="12" cy="12" r="7.5" />
+            </svg>
+          )}
+        </button>
+
+        {Math.abs(bearing) > 1 && (
+          <button
+            type="button"
+            onClick={() => map()?.easeTo({ bearing: 0, duration: 400 })}
+            aria-label="Reset map to north"
+            className={ctrlBtn}
+          >
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              style={{ transform: `rotate(${-bearing}deg)` }}
+              aria-hidden="true"
+            >
+              <path d="M12 3l4 9H8z" fill="#E5484D" />
+              <path d="M12 21l-4-9h8z" fill="#9A93A8" />
+            </svg>
+          </button>
+        )}
+      </div>
+
+      {toast && (
+        <div
+          role="status"
+          className="pointer-events-none absolute inset-x-6 top-[112px] z-10 mx-auto w-fit max-w-[75%] rounded-full bg-[#2A1240] px-4 py-2 text-center text-sm font-semibold text-white shadow-lg"
+        >
+          {toast}
+        </div>
+      )}
+    </div>
+  );
 }

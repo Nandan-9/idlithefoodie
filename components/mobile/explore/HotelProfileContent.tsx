@@ -13,8 +13,11 @@ type Props = {
   onClose: () => void;
 };
 
-/** The hotel profile page content as a bottom drawer over the current screen. */
-export default function HotelProfileDrawer({ hotelId, onClose }: Props) {
+/**
+ * The hotel profile page content, sized to fill (and scroll inside) whatever
+ * drawer it is rendered in.
+ */
+export default function HotelProfileContent({ hotelId, onClose }: Props) {
   const {
     profile,
     ratings,
@@ -30,11 +33,10 @@ export default function HotelProfileDrawer({ hotelId, onClose }: Props) {
 
   return (
     <>
-      <div className="fixed inset-0 z-40 bg-black/40" onClick={onClose} aria-hidden />
       <div
-        role="dialog"
+        role="region"
         aria-label={profile?.name ?? "Hotel details"}
-        className="fixed inset-x-0 bottom-0 z-40 mx-auto flex max-h-[90vh] min-h-[40vh] w-full max-w-[480px] flex-col overflow-y-auto overflow-x-hidden rounded-t-3xl bg-white shadow-xl"
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden"
       >
         {loading && !profile && (
           <div className="flex flex-1 items-center justify-center py-20">
@@ -58,7 +60,7 @@ export default function HotelProfileDrawer({ hotelId, onClose }: Props) {
         )}
 
         {profile && (
-          <>
+          <div className="shrink-0">
             <HotelCover onClose={onClose} />
             <HotelProfileCard
               profile={profile}
@@ -73,7 +75,7 @@ export default function HotelProfileDrawer({ hotelId, onClose }: Props) {
               onSeeAll={() => setSheetOpen(true)}
             />
             <HotelPostsGrid posts={posts} />
-          </>
+          </div>
         )}
       </div>
 
