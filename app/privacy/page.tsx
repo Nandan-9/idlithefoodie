@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Privacy Policy — IDLI",
   description:
     "How Idli collects, uses and protects your personal information, and the choices you have.",
+  alternates: { canonical: "/privacy" },
 };
 
 function Section({

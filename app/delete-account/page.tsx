@@ -5,6 +5,7 @@ export const metadata: Metadata = {
   title: "Delete your account — IDLI",
   description:
     "How to delete your Idli account and the data linked to it, what is removed, and what may be kept.",
+  alternates: { canonical: "/delete-account" },
 };
 
 function Section({

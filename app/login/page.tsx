@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import LoginScreen from "@/components/mobile/LoginScreen";
 
@@ -8,6 +9,8 @@ function Splash() {
     </div>
   );
 }
+
+export const metadata: Metadata = { robots: { index: false } };
 
 export default function LoginPage() {
   return (

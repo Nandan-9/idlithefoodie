@@ -15,7 +15,18 @@ type Props = { searchParams: Promise<{ [key: string]: string | string[] | undefi
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
   const { place } = await searchParams;
-  if (typeof place !== "string" || !place) return {};
+  if (typeof place !== "string" || !place) {
+    const title = "Find the best food spots near you — IDLI";
+    const description =
+      "Browse restaurants and hotels on the IDLI map and see what people are actually eating near you.";
+    return {
+      title,
+      description,
+      alternates: { canonical: "/hotels" },
+      openGraph: { title, description, type: "website", images: [OG_IMAGE] },
+      twitter: { card: "summary_large_image", title, description, images: [OG_IMAGE.url] },
+    };
+  }
 
   try {
     const res = await fetch(`${API_BASE}/hotel/list/?platform=web`, {
