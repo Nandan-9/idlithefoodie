@@ -25,6 +25,7 @@ export const metadata: Metadata = {
     "IDLI is the food community built for real foodies. Join the waitlist for early access — see what people are actually eating near you, share your food finds, and be part of a community that cares about food as much as you do.",
   icons: {
     icon: "/asset2/favicon.png",
+    apple: "/apple-icon.png",
   },
 };
 
