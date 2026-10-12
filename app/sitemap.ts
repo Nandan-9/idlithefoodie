@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { API_BASE } from "@/lib/config";
 import type { Hotel } from "@/types/feed";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://idli.food";
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://www.idli.food";
 
 export const revalidate = 3600;
 
