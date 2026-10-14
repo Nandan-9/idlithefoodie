@@ -88,6 +88,8 @@ export type Hotel = {
    * point, or null. Normalise with `hotelMapsUrl()` in `lib/geo.ts`.
    */
   location: string | GeoPoint | null;
+  /** Thumbnail image URLs of the hotel's posts (hotel list only). */
+  thumbnails?: string[];
 };
 
 export type UploadUrl = { upload_url: string; key: string };

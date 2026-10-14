@@ -1,0 +1,98 @@
+/* Post snapshots that sit above each hotel pin: the newest photo in front,
+   up to two more fanned out behind it like snaps tucked under a pin. */
+
+.snap {
+  position: relative;
+  display: block;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  transform-origin: 50% 100%;
+  transition: transform 180ms cubic-bezier(0.2, 0.8, 0.3, 1.2);
+  animation: snap-in 200ms cubic-bezier(0.2, 0.8, 0.3, 1.2) backwards;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.snap:focus-visible {
+  outline: none;
+}
+
+.snap:focus-visible .front {
+  box-shadow: 0 0 0 3px #6f2dbd, 0 4px 12px rgba(42, 18, 64, 0.35);
+}
+
+.card {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border: 2.5px solid #fff;
+  border-radius: 11px;
+  background: #ede6f7;
+  box-shadow: 0 3px 10px rgba(42, 18, 64, 0.28);
+}
+
+.card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.front {
+  z-index: 2;
+}
+
+/* The tail that points the card down at its pin. */
+.tail {
+  position: absolute;
+  z-index: 3;
+  left: 50%;
+  bottom: -6px;
+  width: 0;
+  height: 0;
+  margin-left: -6px;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+  border-top: 7px solid #fff;
+  filter: drop-shadow(0 2px 1px rgba(42, 18, 64, 0.18));
+}
+
+.back1 {
+  z-index: 1;
+  transform: translate(-7px, -1px) rotate(-9deg) scale(0.92);
+}
+
+.back2 {
+  z-index: 0;
+  transform: translate(7px, -2px) rotate(8deg) scale(0.88);
+}
+
+/* The open hotel: lifted, larger, ringed in the brand colour. */
+.selected {
+  transform: translateY(-6px) scale(1.18);
+}
+
+.selected .front {
+  border-color: #6f2dbd;
+}
+
+.selected .tail {
+  border-top-color: #6f2dbd;
+}
+
+@keyframes snap-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .snap {
+    animation: none;
+    transition: none;
+  }
+}

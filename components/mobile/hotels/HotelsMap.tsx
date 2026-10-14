@@ -9,6 +9,7 @@ import {
   DEFAULT_ZOOM,
   STYLE_URL,
 } from "@/lib/mapConfig";
+import styles from "./HotelsMap.module.css";
 
 // Turbopack can't bundle MapLibre's inline worker, so serve it from /public
 // (copied from node_modules/maplibre-gl/dist/ along with maplibre-gl-shared.mjs;
@@ -75,6 +76,52 @@ function toCollection(pins: Pin[]): GeoJSON.FeatureCollection {
   };
 }
 
+// Photo cards are DOM markers, so only build them for the unclustered pins
+// actually on screen, and re-check at most this often while the map moves.
+const CARD_SYNC_MS = 120;
+const CARD_STACK = 3;
+
+type Card = { marker: maplibregl.Marker; el: HTMLButtonElement };
+
+/** A tiny stack of post photos that sits on top of a hotel's pin. */
+function buildCard(hotel: Hotel, onPick: (id: number) => void): HTMLButtonElement {
+  const el = document.createElement("button");
+  el.type = "button";
+  el.className = styles.snap;
+  el.setAttribute("aria-label", `Open ${hotel.name}`);
+  const shots = (hotel.thumbnails ?? []).slice(0, CARD_STACK);
+  const layers = [styles.front, styles.back1, styles.back2];
+  shots.forEach((src, i) => {
+    const card = document.createElement("span");
+    card.className = `${styles.card} ${layers[i]}`;
+    const img = document.createElement("img");
+    img.src = src;
+    img.alt = "";
+    img.decoding = "async";
+    img.draggable = false;
+    // A broken photo leaves the tinted frame rather than a broken-image icon.
+    img.onerror = () => img.remove();
+    card.appendChild(img);
+    el.appendChild(card);
+  });
+  const tail = document.createElement("span");
+  tail.className = styles.tail;
+  el.appendChild(tail);
+  // Panning the map can start on a card; only a tap that stays put opens it.
+  let downX = 0;
+  let downY = 0;
+  el.addEventListener("pointerdown", (e) => {
+    downX = e.clientX;
+    downY = e.clientY;
+  });
+  el.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (e.detail > 0 && Math.hypot(e.clientX - downX, e.clientY - downY) > 6) return;
+    onPick(hotel.id);
+  });
+  return el;
+}
+
 const EASE_IN_OUT = (t: number) =>
   t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
 
@@ -96,6 +143,8 @@ export default function HotelsMap({
   const pinsRef = useRef<Pin[]>([]);
   const byIdRef = useRef<Map<number, Hotel>>(new Map());
   const userMarkerRef = useRef<maplibregl.Marker | null>(null);
+  const cardsRef = useRef<Map<number, Card>>(new Map());
+  const selectedIdRef = useRef<number | null>(null);
   const is3DRef = useRef(is3D);
   const bottomFracRef = useRef(bottomFrac);
   const autoFitRef = useRef(autoFit);
@@ -300,6 +349,55 @@ export default function HotelsMap({
       map.on("click", L_PINS, pick);
       map.on("click", "hotel-selected-pin", pick);
 
+      // Keep a photo card above every unclustered pin on screen that has
+      // posts. Throttled on render, with a final pass once the map is idle.
+      const pickById = (id: number) => {
+        const hotel = byIdRef.current.get(id);
+        if (hotel) onSelectRef.current(hotel);
+      };
+      const syncCards = () => {
+        const cards = cardsRef.current;
+        const seen = new Set<number>();
+        for (const f of map.queryRenderedFeatures({ layers: [L_PINS] })) {
+          const id = Number(f.properties.id);
+          if (seen.has(id)) continue;
+          seen.add(id);
+          if (cards.has(id)) continue;
+          const hotel = byIdRef.current.get(id);
+          if (!hotel?.thumbnails?.length) continue;
+          const el = buildCard(hotel, pickById);
+          el.classList.toggle(styles.selected, id === selectedIdRef.current);
+          const marker = new maplibregl.Marker({
+            element: el,
+            anchor: "bottom",
+            offset: [0, -16],
+          })
+            .setLngLat((f.geometry as GeoJSON.Point).coordinates as [number, number])
+            .addTo(map);
+          cards.set(id, { marker, el });
+        }
+        // The selected hotel's pin is drawn by its own layer, so keep its card.
+        for (const [id, card] of cards) {
+          if (seen.has(id) || id === selectedIdRef.current) continue;
+          card.marker.remove();
+          cards.delete(id);
+        }
+        // Southern cards overlap northern ones, like objects nearer the viewer.
+        for (const [id, card] of cards) {
+          const lat = card.marker.getLngLat().lat;
+          card.marker.getElement().style.zIndex =
+            id === selectedIdRef.current ? "1000" : String(Math.round(500 - lat * 5));
+        }
+      };
+      let lastSync = 0;
+      map.on("render", () => {
+        const now = performance.now();
+        if (now - lastSync < CARD_SYNC_MS) return;
+        lastSync = now;
+        syncCards();
+      });
+      map.on("idle", syncCards);
+
       setReady(true);
     });
     map.on("error", (e) => {
@@ -308,7 +406,10 @@ export default function HotelsMap({
     });
 
     mapRef.current = map;
+    const cards = cardsRef.current;
     return () => {
+      cards.forEach((c) => c.marker.remove());
+      cards.clear();
       userMarkerRef.current?.remove();
       userMarkerRef.current = null;
       map.remove();
@@ -343,6 +444,9 @@ export default function HotelsMap({
     const pins = toPins(hotels);
     pinsRef.current = pins;
     byIdRef.current = new Map(hotels.map((h) => [h.id, h]));
+    // Rebuild cards from the new list on the next render.
+    cardsRef.current.forEach((c) => c.marker.remove());
+    cardsRef.current.clear();
     (map.getSource(SRC_HOTELS) as maplibregl.GeoJSONSource).setData(
       toCollection(pins)
     );
@@ -369,6 +473,11 @@ export default function HotelsMap({
     (map.getSource(SRC_SELECTED) as maplibregl.GeoJSONSource).setData(
       toCollection(pins)
     );
+    selectedIdRef.current = selected?.id ?? null;
+    cardsRef.current.forEach((c, id) =>
+      c.el.classList.toggle(styles.selected, id === selected?.id)
+    );
+    map.triggerRepaint();
     if (pins[0]) {
       const h = containerRef.current?.clientHeight ?? 0;
       map.easeTo({
@@ -433,7 +542,8 @@ export default function HotelsMap({
   const map = () => mapRef.current;
 
   return (
-    <div className="relative h-full w-full">
+    // `isolate` keeps the photo cards' z-indexes inside the map, under the sheet.
+    <div className="relative isolate h-full w-full">
       <div ref={containerRef} className="h-full w-full" />
 
       {/* Map controls, in one column under the search bar and tag chips. */}
