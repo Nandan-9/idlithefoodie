@@ -23,6 +23,7 @@ const L_CLUSTERS = "hotel-clusters";
 const L_CLUSTER_COUNT = "hotel-cluster-count";
 const L_PINS = "hotel-pins";
 const L_LABELS = "hotel-labels";
+const L_PIN_HIT = "hotel-pin-hit";
 const FONT = ["Noto Sans Bold"];
 const BRAND = "#6F2DBD";
 const INK = "#2A1240";
@@ -81,7 +82,20 @@ function toCollection(pins: Pin[]): GeoJSON.FeatureCollection {
 const CARD_SYNC_MS = 120;
 const CARD_STACK = 3;
 
-type Card = { marker: maplibregl.Marker; el: HTMLButtonElement };
+// A card's footprint on screen, used to keep cards from piling on each other.
+const CARD_W = 50;
+const CARD_H = 56;
+
+type Card = {
+  marker: maplibregl.Marker;
+  /** The bare element MapLibre positions; never style its transform. */
+  root: HTMLDivElement;
+  /** The visible card inside it, free to animate. */
+  el: HTMLButtonElement;
+  key: string;
+};
+
+const cardKey = (hotel: Hotel) => (hotel.thumbnails ?? []).slice(0, CARD_STACK).join("|");
 
 /** A tiny stack of post photos that sits on top of a hotel's pin. */
 function buildCard(hotel: Hotel, onPick: (id: number) => void): HTMLButtonElement {
@@ -98,6 +112,8 @@ function buildCard(hotel: Hotel, onPick: (id: number) => void): HTMLButtonElemen
     img.src = src;
     img.alt = "";
     img.decoding = "async";
+    // Only the front photo matters for the first paint.
+    if (i > 0) img.setAttribute("fetchpriority", "low");
     img.draggable = false;
     // A broken photo leaves the tinted frame rather than a broken-image icon.
     img.onerror = () => img.remove();
@@ -142,6 +158,7 @@ export default function HotelsMap({
   const mapRef = useRef<maplibregl.Map | null>(null);
   const pinsRef = useRef<Pin[]>([]);
   const byIdRef = useRef<Map<number, Hotel>>(new Map());
+  const lngLatRef = useRef<Map<number, [number, number]>>(new Map());
   const userMarkerRef = useRef<maplibregl.Marker | null>(null);
   const cardsRef = useRef<Map<number, Card>>(new Map());
   const selectedIdRef = useRef<number | null>(null);
@@ -280,6 +297,14 @@ export default function HotelsMap({
           "circle-stroke-color": "#fff",
         },
       });
+      // Invisible, larger tap target so small pins are easy to hit on a phone.
+      map.addLayer({
+        id: L_PIN_HIT,
+        type: "circle",
+        source: SRC_HOTELS,
+        filter: ["!", ["has", "point_count"]],
+        paint: { "circle-radius": 22, "circle-opacity": 0 },
+      });
       map.addLayer({
         id: L_LABELS,
         type: "symbol",
@@ -322,7 +347,7 @@ export default function HotelsMap({
 
       const pointer = () => (map.getCanvas().style.cursor = "pointer");
       const reset = () => (map.getCanvas().style.cursor = "");
-      for (const id of [L_CLUSTERS, L_PINS, "hotel-selected-pin"]) {
+      for (const id of [L_CLUSTERS, L_PIN_HIT, "hotel-selected-pin"]) {
         map.on("mouseenter", id, pointer);
         map.on("mouseleave", id, reset);
       }
@@ -335,8 +360,9 @@ export default function HotelsMap({
           const zoom = await src.getClusterExpansionZoom(f.properties.cluster_id);
           map.easeTo({
             center: (f.geometry as GeoJSON.Point).coordinates as [number, number],
-            zoom: zoom + 0.5,
+            zoom: Math.min(zoom + 0.5, map.getMaxZoom()),
             duration: 450,
+            easing: EASE_IN_OUT,
           });
         } catch {
           /* cluster vanished mid-tap */
@@ -346,7 +372,7 @@ export default function HotelsMap({
         const hotel = byIdRef.current.get(Number(e.features?.[0]?.properties.id));
         if (hotel) onSelectRef.current(hotel);
       };
-      map.on("click", L_PINS, pick);
+      map.on("click", L_PIN_HIT, pick);
       map.on("click", "hotel-selected-pin", pick);
 
       // Keep a photo card above every unclustered pin on screen that has
@@ -357,36 +383,68 @@ export default function HotelsMap({
       };
       const syncCards = () => {
         const cards = cardsRef.current;
+        const selectedId = selectedIdRef.current;
         const seen = new Set<number>();
         for (const f of map.queryRenderedFeatures({ layers: [L_PINS] })) {
           const id = Number(f.properties.id);
           if (seen.has(id)) continue;
-          seen.add(id);
-          if (cards.has(id)) continue;
+          // Rendered features can lag a setData by a frame; trust only hotels
+          // in the current list.
           const hotel = byIdRef.current.get(id);
           if (!hotel?.thumbnails?.length) continue;
+          seen.add(id);
+          if (cards.has(id)) continue;
+          // Anchor to the hotel's exact coordinates, not the tile-rounded
+          // geometry of the rendered feature.
+          const lngLat = lngLatRef.current.get(id);
+          if (!lngLat) continue;
           const el = buildCard(hotel, pickById);
-          el.classList.toggle(styles.selected, id === selectedIdRef.current);
+          el.classList.toggle(styles.selected, id === selectedId);
+          // MapLibre moves markers by writing `transform` on this element, so
+          // it stays bare and all card styling lives on the child.
+          const root = document.createElement("div");
+          root.className = styles.anchor;
+          root.appendChild(el);
           const marker = new maplibregl.Marker({
-            element: el,
+            element: root,
             anchor: "bottom",
-            offset: [0, -16],
+            offset: [0, -17],
           })
-            .setLngLat((f.geometry as GeoJSON.Point).coordinates as [number, number])
+            .setLngLat(lngLat)
             .addTo(map);
-          cards.set(id, { marker, el });
+          cards.set(id, { marker, root, el, key: cardKey(hotel) });
         }
         // The selected hotel's pin is drawn by its own layer, so keep its card.
         for (const [id, card] of cards) {
-          if (seen.has(id) || id === selectedIdRef.current) continue;
+          if (seen.has(id) || id === selectedId) continue;
           card.marker.remove();
           cards.delete(id);
         }
-        // Southern cards overlap northern ones, like objects nearer the viewer.
-        for (const [id, card] of cards) {
-          const lat = card.marker.getLngLat().lat;
-          card.marker.getElement().style.zIndex =
-            id === selectedIdRef.current ? "1000" : String(Math.round(500 - lat * 5));
+        // Where cards would overlap, keep the selected one, then the hotel
+        // with more posts, then the one nearer the viewer (further south);
+        // the rest step back to just their pins until there's room.
+        const ranked = [...cards.entries()]
+          .map(([id, card]) => {
+            const ll = card.marker.getLngLat();
+            return { id, card, lat: ll.lat, pt: map.project(ll) };
+          })
+          .sort(
+            (a, z) =>
+              Number(z.id === selectedId) - Number(a.id === selectedId) ||
+              (byIdRef.current.get(z.id)?.thumbnails?.length ?? 0) -
+                (byIdRef.current.get(a.id)?.thumbnails?.length ?? 0) ||
+              a.lat - z.lat
+          );
+        const kept: maplibregl.Point[] = [];
+        for (const { id, card, lat, pt } of ranked) {
+          const clash = kept.some(
+            (k) => Math.abs(k.x - pt.x) < CARD_W && Math.abs(k.y - pt.y) < CARD_H
+          );
+          if (!clash) kept.push(pt);
+          card.root.classList.toggle(styles.tucked, clash);
+          // Southern cards overlap northern ones, like objects nearer the viewer.
+          card.root.style.zIndex =
+            id === selectedId ? "1000" : String(Math.round(500 - lat * 5));
         }
       };
       let lastSync = 0;
@@ -444,9 +502,24 @@ export default function HotelsMap({
     const pins = toPins(hotels);
     pinsRef.current = pins;
     byIdRef.current = new Map(hotels.map((h) => [h.id, h]));
-    // Rebuild cards from the new list on the next render.
-    cardsRef.current.forEach((c) => c.marker.remove());
-    cardsRef.current.clear();
+    // Keep cards whose hotel and photos are unchanged so a refresh or a new
+    // filter doesn't make every card blink; the rest rebuild on next render.
+    lngLatRef.current = new Map(pins.map((p) => [p.hotel.id, p.lngLat]));
+    cardsRef.current.forEach((c, id) => {
+      const hotel = byIdRef.current.get(id);
+      const lngLat = lngLatRef.current.get(id);
+      const ll = c.marker.getLngLat();
+      if (
+        hotel &&
+        lngLat &&
+        lngLat[0] === ll.lng &&
+        lngLat[1] === ll.lat &&
+        cardKey(hotel) === c.key
+      )
+        return;
+      c.marker.remove();
+      cardsRef.current.delete(id);
+    });
     (map.getSource(SRC_HOTELS) as maplibregl.GeoJSONSource).setData(
       toCollection(pins)
     );

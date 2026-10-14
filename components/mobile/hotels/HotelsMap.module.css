@@ -1,7 +1,14 @@
 /* Post snapshots that sit above each hotel pin: the newest photo in front,
    up to two more fanned out behind it like snaps tucked under a pin. */
 
+/* The element MapLibre positions. It writes an inline transform every frame,
+   so nothing here may set transform, transition or animation on it. */
+.anchor {
+  pointer-events: none;
+}
+
 .snap {
+  pointer-events: auto;
   position: relative;
   display: block;
   width: 46px;
@@ -11,7 +18,9 @@
   background: none;
   cursor: pointer;
   transform-origin: 50% 100%;
-  transition: transform 180ms cubic-bezier(0.2, 0.8, 0.3, 1.2);
+  transition:
+    transform 180ms cubic-bezier(0.2, 0.8, 0.3, 1.2),
+    opacity 160ms ease-out;
   animation: snap-in 200ms cubic-bezier(0.2, 0.8, 0.3, 1.2) backwards;
   -webkit-tap-highlight-color: transparent;
 }
@@ -81,6 +90,13 @@
 
 .selected .tail {
   border-top-color: #6f2dbd;
+}
+
+/* A card that would cover a higher-ranked one steps back to just its pin. */
+.tucked .snap {
+  opacity: 0;
+  transform: translateY(8px) scale(0.6);
+  pointer-events: none;
 }
 
 @keyframes snap-in {
