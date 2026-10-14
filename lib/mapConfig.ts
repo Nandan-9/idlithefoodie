@@ -4,3 +4,5 @@ export const TILE_ORIGIN = "https://tiles.openfreemap.org";
 // Where the map opens: Trivandrum, zoomed in to city level.
 export const DEFAULT_CENTER: [number, number] = [76.9366, 8.5241];
 export const DEFAULT_ZOOM = 13;
+// The one font stack every map label uses, so the warm-up can fetch its glyphs.
+export const MAP_FONT = "Noto Sans Bold";

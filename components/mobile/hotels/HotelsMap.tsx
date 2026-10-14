@@ -7,8 +7,10 @@ import type { Hotel } from "@/types/feed";
 import {
   DEFAULT_CENTER,
   DEFAULT_ZOOM,
+  MAP_FONT,
   STYLE_URL,
 } from "@/lib/mapConfig";
+import { MAP, softMapStyle } from "@/lib/mapStyle";
 import styles from "./HotelsMap.module.css";
 
 // Turbopack can't bundle MapLibre's inline worker, so serve it from /public
@@ -24,7 +26,7 @@ const L_CLUSTER_COUNT = "hotel-cluster-count";
 const L_PINS = "hotel-pins";
 const L_LABELS = "hotel-labels";
 const L_PIN_HIT = "hotel-pin-hit";
-const FONT = ["Noto Sans Bold"];
+const FONT = [MAP_FONT];
 const BRAND = "#6F2DBD";
 const INK = "#2A1240";
 // Hotel names under the pins only show from this zoom (street level) upward.
@@ -192,7 +194,6 @@ export default function HotelsMap({
     try {
       map = new maplibregl.Map({
         container: el,
-        style: STYLE_URL,
         center: DEFAULT_CENTER,
         zoom: DEFAULT_ZOOM,
         maxZoom: 17,
@@ -213,6 +214,10 @@ export default function HotelsMap({
     }
 
     map.addControl(new maplibregl.AttributionControl({ compact: true }));
+    // Soften the base map before its first paint.
+    map.setStyle(STYLE_URL, {
+      transformStyle: (_prev, next) => softMapStyle(next),
+    });
 
     // Report which hotels are in view (nearest the centre first) once the
     // camera settles, so the list can follow the map.
@@ -241,7 +246,7 @@ export default function HotelsMap({
         minzoom: 14,
         layout: { visibility: is3DRef.current ? "visible" : "none" },
         paint: {
-          "fill-extrusion-color": "#d9d4cc",
+          "fill-extrusion-color": MAP.building,
           "fill-extrusion-height": ["coalesce", ["get", "render_height"], 8],
           "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0],
           // Must stay 1: any opacity < 1 forces an extra offscreen render pass.
@@ -260,6 +265,52 @@ export default function HotelsMap({
       });
       map.addSource(SRC_SELECTED, { type: "geojson", data: toCollection([]) });
 
+      // A soft glow wherever hotels gather, so busy food areas show from far
+      // out, like a heat map. Clusters count for every hotel they hold.
+      map.addLayer({
+        id: "hotel-heat",
+        type: "heatmap",
+        source: SRC_HOTELS,
+        // Gone by street level, where the extra render pass isn't worth it.
+        maxzoom: 15,
+        paint: {
+          "heatmap-weight": [
+            "interpolate", ["linear"], ["coalesce", ["get", "point_count"], 1],
+            1, 1,
+            20, 3,
+          ],
+          "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 9, 1.2, 15, 2],
+          "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 9, 28, 13, 50, 15, 80],
+          "heatmap-opacity": ["interpolate", ["linear"], ["zoom"], 12.5, 0.85, 15, 0],
+          "heatmap-color": [
+            "interpolate", ["linear"], ["heatmap-density"],
+            0, "rgba(205,184,242,0)",
+            0.15, "rgba(205,184,242,0.5)",
+            0.45, "rgba(157,94,232,0.5)",
+            0.75, "rgba(255,143,199,0.6)",
+            1, "rgba(245,185,66,0.7)",
+          ],
+        },
+      });
+
+      // Soft drop shadows lift pins and clusters off the map.
+      const shadow: maplibregl.CircleLayerSpecification["paint"] = {
+        "circle-color": INK,
+        "circle-opacity": 0.28,
+        "circle-blur": 0.8,
+        "circle-translate": [0, 2],
+      };
+
+      map.addLayer({
+        id: "hotel-cluster-shadow",
+        type: "circle",
+        source: SRC_HOTELS,
+        filter: ["has", "point_count"],
+        paint: {
+          ...shadow,
+          "circle-radius": ["step", ["get", "point_count"], 22, 10, 26, 50, 32],
+        },
+      });
       map.addLayer({
         id: L_CLUSTERS,
         type: "circle",
@@ -284,6 +335,16 @@ export default function HotelsMap({
           "text-allow-overlap": true,
         },
         paint: { "text-color": "#fff" },
+      });
+      map.addLayer({
+        id: "hotel-pin-shadow",
+        type: "circle",
+        source: SRC_HOTELS,
+        filter: ["!", ["has", "point_count"]],
+        paint: {
+          ...shadow,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 10, 10, 16, 15],
+        },
       });
       map.addLayer({
         id: L_PINS,
@@ -332,6 +393,12 @@ export default function HotelsMap({
         type: "circle",
         source: SRC_SELECTED,
         paint: { "circle-color": BRAND, "circle-opacity": 0.22, "circle-radius": 26 },
+      });
+      map.addLayer({
+        id: "hotel-selected-shadow",
+        type: "circle",
+        source: SRC_SELECTED,
+        paint: { ...shadow, "circle-radius": 18 },
       });
       map.addLayer({
         id: "hotel-selected-pin",
@@ -617,7 +684,8 @@ export default function HotelsMap({
   return (
     // `isolate` keeps the photo cards' z-indexes inside the map, under the sheet.
     <div className="relative isolate h-full w-full">
-      <div ref={containerRef} className="h-full w-full" />
+      {/* Ground colour shows while tiles load, instead of a white flash. */}
+      <div ref={containerRef} className="h-full w-full bg-[#F1EFF4]" />
 
       {/* Map controls, in one column under the search bar and tag chips. */}
       <div className="pointer-events-none absolute right-3 top-[112px] z-10 flex flex-col items-center gap-2">

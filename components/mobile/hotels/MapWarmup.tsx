@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect } from "react";
-import { DEFAULT_CENTER, DEFAULT_ZOOM, STYLE_URL, TILE_ORIGIN } from "@/lib/mapConfig";
+import {
+  DEFAULT_CENTER,
+  DEFAULT_ZOOM,
+  MAP_FONT,
+  STYLE_URL,
+  TILE_ORIGIN,
+} from "@/lib/mapConfig";
 
 function tileXY(lng: number, lat: number, z: number): [number, number] {
   const n = 2 ** z;
@@ -14,8 +20,8 @@ function tileXY(lng: number, lat: number, z: number): [number, number] {
 
 /**
  * Starts everything the map needs while the session check is still running:
- * the MapLibre chunk, the style, the tile index and the tiles under the
- * opening view. Responses land in the HTTP cache, so when the map is created
+ * the MapLibre chunk, the style, the label glyphs, the tile index and the
+ * tiles under the opening view. Responses land in the HTTP cache, so when the map is created
  * it finds them instead of walking style → tile index → tiles from scratch.
  */
 export default function MapWarmup() {
@@ -25,6 +31,8 @@ export default function MapWarmup() {
     const run = async () => {
       try {
         await fetch(STYLE_URL);
+        // Basic Latin glyphs, which every label on the opening view needs.
+        void fetch(`${TILE_ORIGIN}/fonts/${encodeURIComponent(MAP_FONT)}/0-255.pbf`).catch(() => {});
         const index = await (await fetch(`${TILE_ORIGIN}/planet`)).json();
         const template: string | undefined = index.tiles?.[0];
         if (!template) return;
