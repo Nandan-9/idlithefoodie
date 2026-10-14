@@ -7,6 +7,7 @@ import HotelDrawerHeader from "./HotelDrawerHeader";
 import ReviewRow from "./ReviewRow";
 import HotelReviewsSheet from "./HotelReviewsSheet";
 import HotelPostsGrid from "./HotelPostsGrid";
+import OpenPostOverlay from "../feed/OpenPostOverlay";
 import ShareHotelModal from "../hotels/ShareHotelModal";
 
 type Props = {
@@ -31,7 +32,10 @@ export default function HotelProfileContent({ hotelId, onClose }: Props) {
     refresh,
     submitRating,
     submitReview,
+    setPosts,
   } = useHotelProfile(hotelId);
+  const [openPostId, setOpenPostId] = useState<number | null>(null);
+  const openPost = openPostId != null ? posts.find((p) => p.id === openPostId) : undefined;
   const [sheetOpen, setSheetOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
 
@@ -122,7 +126,7 @@ export default function HotelProfileContent({ hotelId, onClose }: Props) {
 
             <div className="mx-4 mt-3 h-px bg-[#F0EBF8]" />
 
-            <HotelPostsGrid posts={posts} />
+            <HotelPostsGrid posts={posts} onOpen={(p) => setOpenPostId(p.id)} />
           </div>
         )}
       </div>
@@ -153,6 +157,16 @@ export default function HotelProfileContent({ hotelId, onClose }: Props) {
             </a>
           )}
         </div>
+      )}
+
+      {openPost && (
+        <OpenPostOverlay
+          key={openPost.id}
+          post={openPost}
+          onClose={() => setOpenPostId(null)}
+          setPosts={setPosts}
+          refresh={refresh}
+        />
       )}
 
       {profile && shareOpen && (

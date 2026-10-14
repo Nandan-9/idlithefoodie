@@ -7,7 +7,14 @@ import StorefrontIcon from "./StorefrontIcon";
 
 type Tab = "all" | "offers";
 
-export default function HotelPostsGrid({ posts }: { posts: Post[] }) {
+export default function HotelPostsGrid({
+  posts,
+  onOpen,
+}: {
+  posts: Post[];
+  /** When set, tapping a tile opens that post. */
+  onOpen?: (post: Post) => void;
+}) {
   const [tab, setTab] = useState<Tab>("all");
   const visible = tab === "all" ? posts : [];
 
@@ -39,7 +46,13 @@ export default function HotelPostsGrid({ posts }: { posts: Post[] }) {
         <div className="grid grid-cols-3 gap-3 px-4 pt-3">
           {visible.map((post) => (
             <div key={post.id}>
-              <div className="relative aspect-square overflow-hidden rounded-2xl bg-[#E5E0F5]">
+              <button
+                type="button"
+                onClick={() => onOpen?.(post)}
+                disabled={!onOpen}
+                aria-label={post.description || `Post by ${post.user.username}`}
+                className="relative block aspect-square w-full overflow-hidden rounded-2xl bg-[#E5E0F5] transition-transform enabled:active:scale-[0.97] disabled:cursor-default focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6F2DBD]"
+              >
                 {post.media[0]?.thumbnail_url ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
@@ -69,7 +82,7 @@ export default function HotelPostsGrid({ posts }: { posts: Post[] }) {
                     </svg>
                   </span>
                 )}
-              </div>
+              </button>
               <p className="mt-1 text-[11px] text-[#888]">
                 {formatTimeAgo(post.created_at)}
               </p>

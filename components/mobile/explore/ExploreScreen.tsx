@@ -2,22 +2,14 @@
 
 import { useMemo, useState } from "react";
 import { useExplorePosts } from "@/hooks/useExplorePosts";
-import { usePostActions } from "@/hooks/usePostActions";
 import AppShell from "@/components/mobile/AppShell";
-import PostCard from "@/components/mobile/feed/PostCard";
-import CommentsSheet from "@/components/mobile/feed/CommentsSheet";
-import EditPostDialog from "@/components/mobile/feed/EditPostDialog";
-import ConfirmDialog from "@/components/mobile/profile/ConfirmDialog";
+import OpenPostOverlay from "@/components/mobile/feed/OpenPostOverlay";
 
 export default function ExploreScreen() {
   const [query, setQuery] = useState("");
   const { posts, loading, error, refresh, setPosts } = useExplorePosts(query);
-  const { toggleLike, toggleSave, deleteRating, editPost, removePost } = usePostActions();
 
   const [openPostId, setOpenPostId] = useState<number | null>(null);
-  const [openCommentPostId, setOpenCommentPostId] = useState<number | null>(null);
-  const [editingOpenPost, setEditingOpenPost] = useState(false);
-  const [deletingOpenPost, setDeletingOpenPost] = useState(false);
 
   // One seamless grid, highest-rated first (ties keep the backend's order).
   const ranked = useMemo(
@@ -127,80 +119,12 @@ export default function ExploreScreen() {
       )}
 
       {openPost && (
-        <div className="fixed inset-0 z-50 flex flex-col bg-[#F0EAFB]">
-          <div className="flex items-center gap-2 px-3 py-3">
-            <button
-              onClick={() => setOpenPostId(null)}
-              aria-label="Back"
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-white shadow-sm active:scale-90 transition-transform"
-            >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#1A1A1A" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M15 18l-6-6 6-6" />
-              </svg>
-            </button>
-          </div>
-          <div className="flex-1 overflow-y-auto pb-8" style={{ WebkitOverflowScrolling: "touch" }}>
-            <PostCard
-              post={openPost}
-              onLike={() => toggleLike(openPost)}
-              onComment={() => setOpenCommentPostId(openPost.id)}
-              onSave={() => toggleSave(openPost)}
-              onDeleteRating={() => deleteRating(openPost, refresh)}
-              onEdit={() => setEditingOpenPost(true)}
-              onDelete={() => setDeletingOpenPost(true)}
-            />
-          </div>
-        </div>
-      )}
-
-      {openPost && editingOpenPost && (
-        <EditPostDialog
+        <OpenPostOverlay
+          key={openPost.id}
           post={openPost}
-          onCancel={() => setEditingOpenPost(false)}
-          onSave={async (description) => {
-            await editPost(openPost, { description }, () => {
-              setPosts((ps) =>
-                ps.map((p) => (p.id === openPost.id ? { ...p, description } : p))
-              );
-              setEditingOpenPost(false);
-            });
-          }}
-        />
-      )}
-
-      {openPost && deletingOpenPost && (
-        <ConfirmDialog
-          title="Delete post?"
-          message="This can't be undone."
-          confirmLabel="Delete"
-          cancelLabel="Cancel"
-          onCancel={() => setDeletingOpenPost(false)}
-          onConfirm={async () => {
-            try {
-              await removePost(openPost, () => {
-                setPosts((ps) => ps.filter((p) => p.id !== openPost.id));
-                setOpenPostId(null);
-              });
-            } finally {
-              setDeletingOpenPost(false);
-            }
-          }}
-        />
-      )}
-
-      {openCommentPostId !== null && (
-        <CommentsSheet
-          postId={openCommentPostId}
-          onClose={() => setOpenCommentPostId(null)}
-          onCommentCountChange={(delta) =>
-            setPosts((ps) =>
-              ps.map((p) =>
-                p.id === openCommentPostId
-                  ? { ...p, comment_count: Math.max(0, p.comment_count + delta) }
-                  : p
-              )
-            )
-          }
+          onClose={() => setOpenPostId(null)}
+          setPosts={setPosts}
+          refresh={refresh}
         />
       )}
     </AppShell>

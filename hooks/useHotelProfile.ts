@@ -115,5 +115,11 @@ export function useHotelProfile(hotelId: number) {
     [hotelId, requireAuth]
   );
 
-  return { ...state, refresh, submitRating, submitReview };
+  const setPosts = useCallback(
+    (update: (posts: Post[]) => Post[]) =>
+      setState((s) => ({ ...s, posts: update(s.posts) })),
+    []
+  );
+
+  return { ...state, refresh, submitRating, submitReview, setPosts };
 }
