@@ -29,6 +29,13 @@ const SNAP_CSS: Record<Snap, string> = {
   full: "82dvh",
 };
 const SNAP_ORDER: Snap[] = ["peek", "half", "full"];
+// The hotel drawer only rests at half or full; dragging it below this share
+// of the viewport closes it.
+const HOTEL_SNAPS: Snap[] = ["half", "full"];
+// Hotel half height leaves room for the header, a review and the first row
+// of posts above the pinned Google Map button.
+const HOTEL_HALF = 0.62;
+const HOTEL_CLOSE_FRAC = 0.25;
 // Share of the map hidden behind the sheet, used to centre pins above it.
 const SNAP_FRAC: Record<Snap, number> = { peek: 0.2, half: 0.45, full: 0.45 };
 const SEARCH_DELAY = 300;
@@ -88,6 +95,7 @@ export default function HotelsListScreen() {
   const { hotels, loading, error, refresh } = useHotels();
   const [mode, setMode] = useState<"2d" | "3d">("2d");
   const [snap, setSnap] = useState<Snap>("peek");
+  const [hotelSnap, setHotelSnap] = useState<Snap>("half");
   const [dragHeight, setDragHeight] = useState<number | null>(null);
   const [tags, setTags] = useState<Tag[]>([]);
   const [activeTags, setActiveTags] = useState<number[]>([]);
@@ -228,6 +236,7 @@ export default function HotelsListScreen() {
   function openHotel(hotel: Hotel) {
     const slug = slugify(hotel.name);
     setPlace(slug);
+    setHotelSnap("half");
     window.history.pushState(null, "", `/hotels?place=${slug}`);
   }
 
@@ -287,23 +296,46 @@ export default function HotelsListScreen() {
     const d = dragStart.current;
     dragStart.current = null;
     if (!d) return;
+    const order = selectedHotel ? HOTEL_SNAPS : SNAP_ORDER;
+    const setter = selectedHotel ? setHotelSnap : setSnap;
     if (!d.moved) {
       // A tap steps through the snaps.
-      setSnap((s) => SNAP_ORDER[(SNAP_ORDER.indexOf(s) + 1) % SNAP_ORDER.length]);
+      setter((s) => order[(order.indexOf(s) + 1) % order.length]);
       return;
     }
     const h = sheetRef.current?.offsetHeight ?? d.h;
     const vh = window.innerHeight;
-    const targets: Record<Snap, number> = { peek: 176, half: vh * 0.45, full: vh * 0.82 };
-    const nearest = SNAP_ORDER.reduce((best, s) =>
+    setDragHeight(null);
+    if (selectedHotel && h < vh * HOTEL_CLOSE_FRAC) {
+      closeHotel();
+      return;
+    }
+    const targets: Record<Snap, number> = {
+      peek: 176,
+      half: vh * (selectedHotel ? HOTEL_HALF : 0.45),
+      full: vh * 0.82,
+    };
+    const nearest = order.reduce((best, s) =>
       Math.abs(targets[s] - h) < Math.abs(targets[best] - h) ? s : best
     );
-    setSnap(nearest);
-    setDragHeight(null);
+    setter(nearest);
   }
 
-  const sheetStyle = { height: dragHeight ?? SNAP_CSS[snap] };
-  const bottomFrac = selectedHotel ? 0.45 : SNAP_FRAC[snap];
+  const dragHandlers = {
+    onPointerDown: onHandleDown,
+    onPointerMove: onHandleMove,
+    onPointerUp: onHandleUp,
+    onPointerCancel: onHandleUp,
+  };
+  const sheetTransition =
+    dragHeight === null ? "transition-[height] duration-200 ease-out motion-reduce:transition-none" : "";
+  const restHeight = selectedHotel
+    ? hotelSnap === "half"
+      ? `${HOTEL_HALF * 100}dvh`
+      : SNAP_CSS.full
+    : SNAP_CSS[snap];
+  const sheetStyle = { height: dragHeight ?? restHeight };
+  const bottomFrac = selectedHotel ? HOTEL_HALF : SNAP_FRAC[snap];
 
   // ---- render --------------------------------------------------------------
 
@@ -431,7 +463,31 @@ export default function HotelsListScreen() {
 
       <div className="pointer-events-none absolute inset-x-0 bottom-16 z-20 flex flex-col lg:bottom-0">
         {selectedHotel && (
-          <div className="pointer-events-auto flex h-[45dvh] flex-col overflow-hidden rounded-t-3xl bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.12)]">
+          <div
+            ref={sheetRef}
+            style={sheetStyle}
+            // Scrolling the details from half height expands the drawer.
+            onScrollCapture={(e) => {
+              if (hotelSnap === "half" && dragHeight === null && (e.target as HTMLElement).scrollTop > 0)
+                setHotelSnap("full");
+            }}
+            className={`pointer-events-auto relative flex flex-col overflow-hidden rounded-t-3xl bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.12)] ${sheetTransition}`}
+          >
+            <div
+              {...dragHandlers}
+              role="button"
+              tabIndex={0}
+              aria-label={hotelSnap === "full" ? "Collapse details" : "Expand details"}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setHotelSnap((s) => (s === "full" ? "half" : "full"));
+                }
+              }}
+              className="absolute left-1/2 top-0 z-10 flex h-5 w-24 -translate-x-1/2 cursor-grab touch-none select-none items-center justify-center"
+            >
+              <span className="block h-[3px] w-8 rounded-full bg-white" />
+            </div>
             <HotelProfileContent
               key={selectedHotel.id}
               hotelId={selectedHotel.id}
@@ -444,15 +500,10 @@ export default function HotelsListScreen() {
           <div
             ref={sheetRef}
             style={sheetStyle}
-            className={`pointer-events-auto flex flex-col rounded-t-3xl bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.12)] ${
-              dragHeight === null ? "transition-[height] duration-200 ease-out motion-reduce:transition-none" : ""
-            }`}
+            className={`pointer-events-auto flex flex-col rounded-t-3xl bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.12)] ${sheetTransition}`}
           >
             <div
-              onPointerDown={onHandleDown}
-              onPointerMove={onHandleMove}
-              onPointerUp={onHandleUp}
-              onPointerCancel={onHandleUp}
+              {...dragHandlers}
               className="shrink-0 cursor-grab touch-none select-none px-5 pb-2 pt-2.5"
             >
               <span className="mx-auto block h-1 w-10 rounded-full bg-[#DAD2EE]" />
