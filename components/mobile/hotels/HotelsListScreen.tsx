@@ -229,12 +229,25 @@ export default function HotelsListScreen() {
 
   // ---- selection -----------------------------------------------------------
 
-  const selectedHotel = place
-    ? hotels.find((h) => slugify(h.name) === place) ?? null
-    : null;
+  // The hotel last tapped on the map or list. Tag and search results come from
+  // other endpoints and may be missing from `hotels`, so keep it as a fallback.
+  const [openedHotel, setOpenedHotel] = useState<Hotel | null>(null);
+
+  const selectedHotel = useMemo(() => {
+    if (!place) return null;
+    const match = (h: Hotel) => slugify(h.name) === place;
+    if (openedHotel && match(openedHotel)) return openedHotel;
+    return (
+      hotels.find(match) ??
+      tagHotels.find(match) ??
+      searchResults?.find(match) ??
+      null
+    );
+  }, [place, openedHotel, hotels, tagHotels, searchResults]);
 
   function openHotel(hotel: Hotel) {
     const slug = slugify(hotel.name);
+    setOpenedHotel(hotel);
     setPlace(slug);
     setHotelSnap("half");
     window.history.pushState(null, "", `/hotels?place=${slug}`);
