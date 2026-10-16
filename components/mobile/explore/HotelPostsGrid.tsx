@@ -21,7 +21,7 @@ export default function HotelPostsGrid({
   return (
     <div className="pb-6">
       <div className="flex items-center justify-between px-4 pt-5">
-        <h2 className="font-bold text-[#6F2DBD]">All Posts</h2>
+        <h2 className="font-display text-lg font-bold leading-none text-[#1A1A1A]">Posts</h2>
         <div className="flex items-center gap-1 rounded-full bg-[#F5F2FB] p-1">
           {(["all", "offers"] as Tab[]).map((t) => (
             <button

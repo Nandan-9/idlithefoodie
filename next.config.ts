@@ -7,7 +7,7 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   devIndicators: false,
-  allowedDevOrigins: ["192.168.1.2", "192.168.1.3"],
+  allowedDevOrigins: ["192.168.1.2", "192.168.1.3", "idli.dev"],
   async headers() {
     // The MapLibre worker is ~500 KB and unhashed; let repeat visits skip it.
     return [

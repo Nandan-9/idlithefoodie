@@ -11,7 +11,9 @@ import OpenPostOverlay from "../feed/OpenPostOverlay";
 import ShareHotelModal from "../hotels/ShareHotelModal";
 
 const sectionBand = "h-2 bg-[#F6F4FA]";
-const sectionHeading = "font-display text-lg font-bold leading-tight text-[#1A1A1A]";
+// Type scale: section title 18 bold display > key content 15 semibold >
+// supporting text 14 regular > captions 12.
+const sectionHeading = "font-display text-lg font-bold leading-none text-[#1A1A1A]";
 
 function DetailIcon({ name }: { name: "vibe" | "people" }) {
   return (
@@ -112,17 +114,17 @@ export default function HotelProfileContent({ hotelId, onClose }: Props) {
             {hasDetails && (
               <>
                 <div className={sectionBand} />
-                <div className="space-y-6 px-4 py-5">
+                <div className="space-y-7 px-4 pb-6 pt-5">
                   {dishes.length > 0 && (
                     <section aria-labelledby="drawer-must-try">
                       <h2 id="drawer-must-try" className={sectionHeading}>
                         Must try
                       </h2>
-                      <ul className="mt-2.5 flex flex-wrap gap-2">
+                      <ul className="mt-3 flex flex-wrap gap-2">
                         {dishes.map((dish) => (
                           <li
                             key={dish}
-                            className="rounded-full border border-[#E5DCF5] bg-[#FAF8FE] px-3.5 py-1.5 text-[13px] font-semibold text-[#4A2A80]"
+                            className="rounded-full bg-[#F3EDFC] px-3.5 py-2 text-sm font-semibold leading-none text-[#2A1240]"
                           >
                             {dish}
                           </li>
@@ -136,15 +138,15 @@ export default function HotelProfileContent({ hotelId, onClose }: Props) {
                       <h2 id="drawer-good-to-know" className={sectionHeading}>
                         Good to know
                       </h2>
-                      <dl className="mt-2.5 space-y-3">
+                      <dl className="mt-3 space-y-3.5">
                         {goodToKnow.map((f) => (
                           <div key={f.label} className="flex items-start gap-3">
                             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F5F2FB] text-[#6F2DBD]">
                               <DetailIcon name={f.icon} />
                             </span>
-                            <div className="min-w-0 pt-px">
-                              <dt className="text-xs text-[#7A7488]">{f.label}</dt>
-                              <dd className="break-words text-sm font-semibold leading-snug text-[#1A1A1A]">
+                            <div className="min-w-0">
+                              <dt className="text-xs font-medium leading-tight text-[#8A8299]">{f.label}</dt>
+                              <dd className="mt-0.5 break-words text-[15px] font-semibold leading-snug text-[#1A1A1A]">
                                 {f.value}
                               </dd>
                             </div>
@@ -159,10 +161,10 @@ export default function HotelProfileContent({ hotelId, onClose }: Props) {
                       <h2 id="drawer-amenities" className={sectionHeading}>
                         Amenities
                       </h2>
-                      <ul className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2.5">
+                      <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2">
                         {amenities.map((item) => (
-                          <li key={item} className="flex items-start gap-2 text-sm leading-snug text-[#333]">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1F9D55" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-0.5 shrink-0">
+                          <li key={item} className="flex items-start gap-2 text-sm leading-snug text-[#4A4458]">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#1F9D55" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-0.5 shrink-0">
                               <path d="M5 12.5l4.5 4.5L19 7.5" />
                             </svg>
                             {item}
@@ -177,7 +179,7 @@ export default function HotelProfileContent({ hotelId, onClose }: Props) {
 
             <div className={sectionBand} />
 
-            <section aria-labelledby="drawer-reviews" className="px-4 pt-4">
+            <section aria-labelledby="drawer-reviews" className="px-4 pt-5">
               <div className="flex items-center justify-between">
                 <h2 id="drawer-reviews" className={sectionHeading}>
                   What people say
@@ -185,15 +187,15 @@ export default function HotelProfileContent({ hotelId, onClose }: Props) {
                 <button
                   type="button"
                   onClick={() => setSheetOpen(true)}
-                  className="rounded-full px-3 py-1.5 text-sm font-semibold text-[#6F2DBD] active:bg-[#F3EEFB]"
+                  className="-mr-3 rounded-full px-3 py-1.5 text-[13px] font-semibold text-[#6F2DBD] active:bg-[#F3EEFB]"
                 >
                   {ownReviewId ? "Edit your review" : "Write a review"}
                 </button>
               </div>
 
               {reviewCount === 0 ? (
-                <p className="pb-2 pt-1 text-sm text-[#777]">
-                  No reviews yet.
+                <p className="pb-3 pt-2 text-sm text-[#7A7488]">
+                  No reviews yet. Be the first to say how it was.
                 </p>
               ) : (
                 <>
@@ -220,7 +222,7 @@ export default function HotelProfileContent({ hotelId, onClose }: Props) {
               )}
             </section>
 
-            <div className={`${sectionBand} mt-3`} />
+            <div className={`${sectionBand} mt-4`} />
 
             <HotelPostsGrid posts={posts} onOpen={(p) => setOpenPostId(p.id)} />
           </div>

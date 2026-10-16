@@ -83,7 +83,7 @@ export default function HotelDrawerHeader({
         <div className="min-w-0 flex-1 self-center">
           {profile ? (
             <div className="flex items-center gap-1.5">
-              <h1 className="font-display text-[22px] font-bold leading-[1.15] [overflow-wrap:anywhere]">
+              <h1 className="font-display text-2xl font-bold leading-[1.1] tracking-[-0.01em] [overflow-wrap:anywhere]">
                 {profile.name}
               </h1>
               {profile.is_verified && (
@@ -119,26 +119,26 @@ export default function HotelDrawerHeader({
 
       {profile ? (
         <div className="mt-3 flex items-start gap-4">
-          <div className="min-w-0 flex-1 space-y-1">
+          <div className="min-w-0 flex-1">
             {(cuisines || price) && (
-              <p className="flex flex-wrap items-center gap-x-2 text-[15px] leading-snug text-white/85">
-                {cuisines && <span>{cuisines}</span>}
+              <p className="flex flex-wrap items-center gap-x-2 leading-snug">
+                {cuisines && <span className="text-sm font-medium text-white/80">{cuisines}</span>}
                 {cuisines && price && <span aria-hidden="true" className="h-3.5 w-px bg-white/35" />}
-                {price && <span className="font-semibold text-white">{price}</span>}
+                {price && <span className="text-[15px] font-bold text-white">{price}</span>}
               </p>
             )}
 
             {address && (
-              <p className="line-clamp-2 text-sm leading-snug text-white/70">{address}</p>
+              <p className="mt-1.5 line-clamp-2 text-[13px] leading-snug text-white/60">{address}</p>
             )}
 
             {profile.hours && (
-              <div>
+              <div className="mt-2">
                 <button
                   type="button"
                   onClick={() => setHoursOpen((v) => !v)}
                   aria-expanded={hoursOpen}
-                  className="-mx-1 flex items-center gap-1.5 rounded-md px-1 py-0.5 text-sm focus-visible:outline-2 focus-visible:outline-white"
+                  className="-mx-1 flex items-center gap-1.5 rounded-md px-1 py-0.5 text-[13px] focus-visible:outline-2 focus-visible:outline-white"
                 >
                   {status ? (
                     <>
@@ -155,7 +155,7 @@ export default function HotelDrawerHeader({
                       >
                         {!status.open ? "Closed" : status.closingSoon ? "Closing soon" : "Open now"}
                       </span>
-                      <span className="text-white/85">
+                      <span className="text-white/75">
                         {status.detail === "Open 24 hours" ? "24 hours" : status.detail}
                       </span>
                     </>
@@ -178,7 +178,7 @@ export default function HotelDrawerHeader({
                   </svg>
                 </button>
                 {hoursOpen && (
-                  <p className="mt-0.5 text-sm text-white/70">{profile.hours}</p>
+                  <p className="mt-0.5 text-[13px] text-white/60">{profile.hours}</p>
                 )}
               </div>
             )}
