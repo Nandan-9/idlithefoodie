@@ -484,6 +484,12 @@ export async function fetchHotels(query?: string): Promise<Hotel[]> {
   return unwrapEnvelope<Hotel[]>(res, "Failed to load hotels");
 }
 
+/** Every hotel (id, name, address, city) for the create-post hotel picker. */
+export async function fetchPickerHotels(): Promise<Hotel[]> {
+  const res = await apiFetch(`/hotel/picker/`);
+  return unwrapEnvelope<Hotel[]>(res, "Failed to load hotels");
+}
+
 /** All admin-created tags (flat array, no pagination). */
 export async function fetchTags(): Promise<Tag[]> {
   const res = await apiFetch(`/post/tags/`);

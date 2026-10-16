@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { fetchHotels } from "@/lib/api";
+import { fetchPickerHotels } from "@/lib/api";
 import type { Hotel } from "@/types/feed";
 
 type Props = {
@@ -58,7 +58,7 @@ function HotelSheet({
 
   useEffect(() => {
     let cancelled = false;
-    fetchHotels()
+    fetchPickerHotels()
       .then((list) => {
         if (!cancelled) setHotels(list);
       })
