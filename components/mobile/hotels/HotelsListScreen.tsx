@@ -486,7 +486,7 @@ export default function HotelsListScreen() {
               }}
               className="absolute left-1/2 top-0 z-10 flex h-5 w-24 -translate-x-1/2 cursor-grab touch-none select-none items-center justify-center"
             >
-              <span className="block h-[3px] w-8 rounded-full bg-white" />
+              <span className="block h-1 w-9 rounded-full bg-[#D9D2E8]" />
             </div>
             <HotelProfileContent
               key={selectedHotel.id}

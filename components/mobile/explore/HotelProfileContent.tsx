@@ -10,6 +10,24 @@ import HotelPostsGrid from "./HotelPostsGrid";
 import OpenPostOverlay from "../feed/OpenPostOverlay";
 import ShareHotelModal from "../hotels/ShareHotelModal";
 
+const sectionBand = "h-2 bg-[#F6F4FA]";
+const sectionHeading = "font-display text-lg font-bold leading-tight text-[#1A1A1A]";
+
+function DetailIcon({ name }: { name: "vibe" | "people" }) {
+  return (
+    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {name === "vibe" ? (
+        <path d="M12 3l1.9 5.1L19 10l-5.1 1.9L12 17l-1.9-5.1L5 10l5.1-1.9zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z" />
+      ) : (
+        <>
+          <circle cx="9" cy="8" r="3.2" />
+          <path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5M16 4.8a3.2 3.2 0 0 1 0 6.4M21 20c0-2.8-1.8-4.8-4.3-5.4" />
+        </>
+      )}
+    </svg>
+  );
+}
+
 type Props = {
   hotelId: number;
   onClose: () => void;
@@ -17,8 +35,9 @@ type Props = {
 
 /**
  * The hotel profile laid out for the map drawer, ordered by what a visitor
- * asks first: which place this is and how it rates (pinned header), what
- * people say, what they've posted, and how to get there (pinned footer).
+ * asks first: what the place is, costs, where it is and whether it's open
+ * (pinned header), then dishes and details, what people say, what they've
+ * posted, and how to get there (pinned footer).
  * Sized to fill whatever drawer it is rendered in; only the middle scrolls.
  */
 export default function HotelProfileContent({ hotelId, onClose }: Props) {
@@ -45,12 +64,21 @@ export default function HotelProfileContent({ hotelId, onClose }: Props) {
   const reviewCount = reviews.reviews.length;
   const ownReviewId = reviews.user_review?.id ?? null;
 
+  const goodToKnow = profile
+    ? [
+        { label: "Vibe", value: profile.atmosphere, icon: "vibe" as const },
+        { label: "Best for", value: profile.best_for, icon: "people" as const },
+      ].filter((f) => f.value)
+    : [];
+  const dishes = profile?.dishes ?? [];
+  const amenities = profile ? [...(profile.services ?? []), ...(profile.facilities ?? [])] : [];
+  const hasDetails = dishes.length > 0 || goodToKnow.length > 0 || amenities.length > 0;
+
   return (
     <>
       <HotelDrawerHeader
         profile={profile}
         ratings={ratings}
-        reviewCount={reviewCount}
         onSeeReviews={() => setSheetOpen(true)}
         onShare={() => setShareOpen(true)}
         onClose={onClose}
@@ -81,9 +109,77 @@ export default function HotelProfileContent({ hotelId, onClose }: Props) {
 
         {profile && (
           <div className="shrink-0">
+            {hasDetails && (
+              <>
+                <div className={sectionBand} />
+                <div className="space-y-6 px-4 py-5">
+                  {dishes.length > 0 && (
+                    <section aria-labelledby="drawer-must-try">
+                      <h2 id="drawer-must-try" className={sectionHeading}>
+                        Must try
+                      </h2>
+                      <ul className="mt-2.5 flex flex-wrap gap-2">
+                        {dishes.map((dish) => (
+                          <li
+                            key={dish}
+                            className="rounded-full border border-[#E5DCF5] bg-[#FAF8FE] px-3.5 py-1.5 text-[13px] font-semibold text-[#4A2A80]"
+                          >
+                            {dish}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+
+                  {goodToKnow.length > 0 && (
+                    <section aria-labelledby="drawer-good-to-know">
+                      <h2 id="drawer-good-to-know" className={sectionHeading}>
+                        Good to know
+                      </h2>
+                      <dl className="mt-2.5 space-y-3">
+                        {goodToKnow.map((f) => (
+                          <div key={f.label} className="flex items-start gap-3">
+                            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F5F2FB] text-[#6F2DBD]">
+                              <DetailIcon name={f.icon} />
+                            </span>
+                            <div className="min-w-0 pt-px">
+                              <dt className="text-xs text-[#7A7488]">{f.label}</dt>
+                              <dd className="break-words text-sm font-semibold leading-snug text-[#1A1A1A]">
+                                {f.value}
+                              </dd>
+                            </div>
+                          </div>
+                        ))}
+                      </dl>
+                    </section>
+                  )}
+
+                  {amenities.length > 0 && (
+                    <section aria-labelledby="drawer-amenities">
+                      <h2 id="drawer-amenities" className={sectionHeading}>
+                        Amenities
+                      </h2>
+                      <ul className="mt-2.5 grid grid-cols-2 gap-x-4 gap-y-2.5">
+                        {amenities.map((item) => (
+                          <li key={item} className="flex items-start gap-2 text-sm leading-snug text-[#333]">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#1F9D55" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="mt-0.5 shrink-0">
+                              <path d="M5 12.5l4.5 4.5L19 7.5" />
+                            </svg>
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+                </div>
+              </>
+            )}
+
+            <div className={sectionBand} />
+
             <section aria-labelledby="drawer-reviews" className="px-4 pt-4">
               <div className="flex items-center justify-between">
-                <h2 id="drawer-reviews" className="font-display text-lg font-bold text-[#1A1A1A]">
+                <h2 id="drawer-reviews" className={sectionHeading}>
                   What people say
                 </h2>
                 <button
@@ -124,7 +220,7 @@ export default function HotelProfileContent({ hotelId, onClose }: Props) {
               )}
             </section>
 
-            <div className="mx-4 mt-3 h-px bg-[#F0EBF8]" />
+            <div className={`${sectionBand} mt-3`} />
 
             <HotelPostsGrid posts={posts} onOpen={(p) => setOpenPostId(p.id)} />
           </div>

@@ -10,6 +10,15 @@ export type HotelProfile = {
   location_link: string | null;
   profile_completion: number;
   is_verified?: boolean;
+  price_min: string | null;
+  price_max: string | null;
+  hours: string | null;
+  atmosphere: string | null;
+  best_for: string | null;
+  cuisines: string[];
+  services: string[];
+  facilities: string[];
+  dishes: string[];
 };
 
 export type HotelUserRef = {
