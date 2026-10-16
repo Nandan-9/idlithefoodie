@@ -15,7 +15,7 @@ type Props = {
 };
 
 const iconButton =
-  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#F5F2FB] text-[#4A3B63] transition-transform active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6F2DBD]";
+  "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-white/15 text-white transition-transform active:scale-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white";
 
 export function formatPriceRange(profile: HotelProfile): string {
   const [min, max] = [profile.price_min, profile.price_max].map((p) => (p != null ? Number(p) : null));
@@ -60,9 +60,9 @@ export default function HotelDrawerHeader({
       : (profile?.address ?? "");
 
   return (
-    <div className="shrink-0 bg-white px-4 pb-4 pt-6">
+    <div className="shrink-0 bg-gradient-to-br from-[#2A1240] to-[#6F2DBD] px-4 pb-4 pt-6 text-white">
       <div className="flex items-start gap-3">
-        <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-[#F5F2FB] ring-1 ring-[#E5E0F5]">
+        <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-white/20 ring-2 ring-white/80">
           {profile?.avatar ? (
             <Image
               src={profile.avatar}
@@ -75,7 +75,7 @@ export default function HotelDrawerHeader({
             />
           ) : (
             <div className="flex h-full w-full items-center justify-center">
-              <StorefrontIcon size={20} color="#6F2DBD" />
+              <StorefrontIcon size={20} color="#FFFFFF" />
             </div>
           )}
         </div>
@@ -83,18 +83,18 @@ export default function HotelDrawerHeader({
         <div className="min-w-0 flex-1 self-center">
           {profile ? (
             <div className="flex items-center gap-1.5">
-              <h1 className="font-display text-[22px] font-bold leading-[1.15] text-[#1A1A1A] [overflow-wrap:anywhere]">
+              <h1 className="font-display text-[22px] font-bold leading-[1.15] [overflow-wrap:anywhere]">
                 {profile.name}
               </h1>
               {profile.is_verified && (
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="#6F2DBD" aria-label="Verified" className="shrink-0">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="#F5C518" aria-label="Verified" className="shrink-0">
                   <path d="M12 1l2.5 2.5L18 3l.5 3.5L22 8l-1.8 3L22 14l-3.5 1.5L18 19l-3.5-.5L12 21l-2.5-2.5L6 19l-.5-3.5L2 14l1.8-3L2 8l3.5-1.5L6 3l3.5.5z" />
-                  <path d="M9 12l2 2 4-4" stroke="#FFFFFF" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M9 12l2 2 4-4" stroke="#2A1240" strokeWidth="2.2" fill="none" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               )}
             </div>
           ) : (
-            <span className="block h-5 w-40 animate-pulse rounded bg-[#EEE9F7]" aria-hidden="true" />
+            <span className="block h-5 w-40 animate-pulse rounded bg-white/25" aria-hidden="true" />
           )}
         </div>
 
@@ -121,15 +121,15 @@ export default function HotelDrawerHeader({
         <div className="mt-3 flex items-start gap-4">
           <div className="min-w-0 flex-1 space-y-1">
             {(cuisines || price) && (
-              <p className="flex flex-wrap items-center gap-x-2 text-[15px] leading-snug text-[#4A4A4A]">
+              <p className="flex flex-wrap items-center gap-x-2 text-[15px] leading-snug text-white/85">
                 {cuisines && <span>{cuisines}</span>}
-                {cuisines && price && <span aria-hidden="true" className="h-3.5 w-px bg-[#D8D2E6]" />}
-                {price && <span className="font-semibold text-[#1A1A1A]">{price}</span>}
+                {cuisines && price && <span aria-hidden="true" className="h-3.5 w-px bg-white/35" />}
+                {price && <span className="font-semibold text-white">{price}</span>}
               </p>
             )}
 
             {address && (
-              <p className="line-clamp-2 text-sm leading-snug text-[#7A7488]">{address}</p>
+              <p className="line-clamp-2 text-sm leading-snug text-white/70">{address}</p>
             )}
 
             {profile.hours && (
@@ -138,47 +138,47 @@ export default function HotelDrawerHeader({
                   type="button"
                   onClick={() => setHoursOpen((v) => !v)}
                   aria-expanded={hoursOpen}
-                  className="-mx-1 flex items-center gap-1.5 rounded-md px-1 py-0.5 text-sm focus-visible:outline-2 focus-visible:outline-[#6F2DBD]"
+                  className="-mx-1 flex items-center gap-1.5 rounded-md px-1 py-0.5 text-sm focus-visible:outline-2 focus-visible:outline-white"
                 >
                   {status ? (
                     <>
                       <span
                         aria-hidden="true"
                         className={`h-2 w-2 rounded-full ${
-                          !status.open ? "bg-[#D64545]" : status.closingSoon ? "bg-[#E08A00]" : "bg-[#1F9D55]"
+                          !status.open ? "bg-[#FF8A8A]" : status.closingSoon ? "bg-[#FFC861]" : "bg-[#5EE39A]"
                         }`}
                       />
                       <span
                         className={`font-semibold ${
-                          !status.open ? "text-[#C23B3B]" : status.closingSoon ? "text-[#B86E00]" : "text-[#17804A]"
+                          !status.open ? "text-[#FFA3A3]" : status.closingSoon ? "text-[#FFD48A]" : "text-[#7CF0B0]"
                         }`}
                       >
                         {!status.open ? "Closed" : status.closingSoon ? "Closing soon" : "Open now"}
                       </span>
-                      <span className="text-[#4A4A4A]">
+                      <span className="text-white/85">
                         {status.detail === "Open 24 hours" ? "24 hours" : status.detail}
                       </span>
                     </>
                   ) : (
-                    <span className="text-[#4A4A4A]">Hours</span>
+                    <span className="text-white/85">Hours</span>
                   )}
                   <svg
                     width="14"
                     height="14"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke="#9A93AA"
+                    stroke="currentColor"
                     strokeWidth="2.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
                     aria-hidden="true"
-                    className={`transition-transform ${hoursOpen ? "rotate-180" : ""}`}
+                    className={`text-white/60 transition-transform ${hoursOpen ? "rotate-180" : ""}`}
                   >
                     <path d="M6 9l6 6 6-6" />
                   </svg>
                 </button>
                 {hoursOpen && (
-                  <p className="mt-0.5 text-sm text-[#7A7488]">{profile.hours}</p>
+                  <p className="mt-0.5 text-sm text-white/70">{profile.hours}</p>
                 )}
               </div>
             )}
@@ -192,7 +192,7 @@ export default function HotelDrawerHeader({
                 ? `Rated ${avg.toFixed(1)} from ${ratings.rating_count} ratings. See reviews`
                 : "No ratings yet. Rate this place"
             }
-            className="flex w-14 shrink-0 flex-col overflow-hidden rounded-xl border border-[#E5E0F5] text-center transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#6F2DBD]"
+            className="flex w-14 shrink-0 flex-col overflow-hidden rounded-xl bg-white text-center transition-transform active:scale-95 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
           >
             <span
               className={`flex items-center justify-center gap-0.5 py-1.5 text-[15px] font-bold text-white ${
@@ -213,9 +213,9 @@ export default function HotelDrawerHeader({
         </div>
       ) : (
         <div className="mt-3 space-y-2" aria-hidden="true">
-          <span className="block h-4 w-48 animate-pulse rounded bg-[#EEE9F7]" />
-          <span className="block h-3.5 w-64 animate-pulse rounded bg-[#F3F0F9]" />
-          <span className="block h-3.5 w-32 animate-pulse rounded bg-[#F3F0F9]" />
+          <span className="block h-4 w-48 animate-pulse rounded bg-white/25" />
+          <span className="block h-3.5 w-64 animate-pulse rounded bg-white/15" />
+          <span className="block h-3.5 w-32 animate-pulse rounded bg-white/15" />
         </div>
       )}
     </div>
