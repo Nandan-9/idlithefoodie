@@ -215,6 +215,61 @@ export async function verifyUserAuthOtp(
   };
 }
 
+/** Sends a password-reset OTP to `phone` (E.164, e.g. +919876543210). */
+export async function sendPasswordResetOtp(phone: string): Promise<void> {
+  const res = await fetch(`${BASE}/otp/send/`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, purpose: "user_password_reset" }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new OtpError(body?.message ?? "Could not send OTP", res.status);
+  }
+}
+
+/** Verifies the code from `sendPasswordResetOtp` and returns a verification_token
+ * to pass to `resetPasswordRequest`. */
+export async function verifyPasswordResetOtp(
+  phone: string,
+  code: string
+): Promise<string> {
+  const res = await fetch(`${BASE}/otp/verify/`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ phone, purpose: "user_password_reset", code }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new OtpError(body?.message ?? "Invalid code", res.status);
+  }
+  return body?.data?.verification_token as string;
+}
+
+/** Sets a new password after OTP verification. */
+export async function resetPasswordRequest(
+  phone: string,
+  verificationToken: string,
+  newPassword: string
+): Promise<void> {
+  const res = await fetch(`${BASE}/auth/reset-password/`, {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      phone,
+      verification_token: verificationToken,
+      new_password: newPassword,
+    }),
+  });
+  const body = await res.json().catch(() => null);
+  if (!res.ok) {
+    throw new OtpError(body?.message ?? "Password reset failed", res.status);
+  }
+}
+
 /** Creates the account after OTP verification; the backend sets the auth cookies. */
 export async function signupRequest(
   username: string,

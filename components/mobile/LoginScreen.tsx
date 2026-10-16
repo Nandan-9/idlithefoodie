@@ -143,6 +143,13 @@ export default function LoginScreen() {
             {showPassword ? "Hide" : "Show"}
           </button>
         </div>
+        <button
+          type="button"
+          onClick={() => router.push("/forgot-password")}
+          className="self-end -mt-2 text-sm font-semibold text-[#6F2DBD]"
+        >
+          Forgot password?
+        </button>
         {error && (
           <p className="text-red-500 text-sm text-center">{error}</p>
         )}
